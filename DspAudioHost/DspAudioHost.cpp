@@ -41,6 +41,27 @@ int CDspAudioHostApp::ExitInstance() {
     return 0;
 }
 
+BOOL CDspAudioHostApp::another_instance_running(const CString mut_name) {
+    HANDLE mutex = CreateMutex(NULL, FALSE, mut_name);
+    if (mutex == NULL) {
+        return FALSE;
+    }
+
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        /* You only need the message box if you wish to notify the user
+           that the process is running*/
+        MessageBoxW(NULL,
+            L"Another instance is already running.\n\nIf you want to run more than one "
+            L"instance, please copy DSPAudioHost to a different location, and try "
+            L"running it from there",
+            L"DSPAudioHost: Another instance running", MB_OK);
+
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
 // CDspAudioHostApp initialization
 
 BOOL CDspAudioHostApp::InitInstance() {
@@ -80,6 +101,10 @@ BOOL CDspAudioHostApp::InitInstance() {
     filepath.Replace(L"\\", L"_");
     filepath.Replace(L":", L"_");
     filepath.Replace(L".", L"_");
+
+    if (another_instance_running(filepath)) {
+        return FALSE;
+    }
 
     SetRegistryKey(filepath);
 

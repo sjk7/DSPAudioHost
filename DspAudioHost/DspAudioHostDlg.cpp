@@ -1367,6 +1367,34 @@ static inline BOOL CenterWindow(HWND hwndWindow, int topOffset = 0) {
 
     return FALSE;
 }
+RECT my_get_window_position(HWND hwnd) {
+    RECT rect = {0};
+    WINDOWPLACEMENT wp = {0};
+    wp.length = sizeof(WINDOWPLACEMENT);
+    BOOL gotp = ::GetWindowPlacement(hwnd, &wp);
+    ASSERT(gotp);
+    rect = wp.rcNormalPosition;
+    return rect;
+}
+
+static bool window_is_offscreen(HWND hwnd) {
+
+    // int nScreenWidth = GetSystemMetrics(SM_CXSCREEN);
+    // int nScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+    CRect windows_work_area;
+    RECT rect = my_get_window_position(hwnd);
+    SystemParametersInfo(SPI_GETWORKAREA, 0, &windows_work_area, 0);
+
+    if (rect.bottom > windows_work_area.bottom + 50
+        || rect.right > windows_work_area.right + 50
+        || rect.left < windows_work_area.left - 50
+        || rect.top < windows_work_area.top - 50) {
+
+        return true;
+    }
+
+    return false;
+}
 
 // if you don't force then it will only be centred on me when hwnd is off the screen
 // partially or completely
@@ -1377,25 +1405,8 @@ void CDspAudioHostDlg::centreWindowOnMe(
         ::CenterWindow(hwnd, topOffset);
 
     } else {
-        RECT rect = {0};
-        WINDOWPLACEMENT wp = {0};
-        wp.length = sizeof(WINDOWPLACEMENT);
-        BOOL gotp = ::GetWindowPlacement(hwnd, &wp);
-        ASSERT(gotp);
-        rect = wp.rcNormalPosition;
-        // int nScreenWidth = GetSystemMetrics(SM_CXSCREEN);
-        // int nScreenHeight = GetSystemMetrics(SM_CYSCREEN);
-        CRect windows_work_area;
-        SystemParametersInfo(SPI_GETWORKAREA, 0, &windows_work_area, 0);
-
-        if (gotp) {
-            if (rect.bottom > windows_work_area.bottom + 50
-                || rect.right > windows_work_area.right + 50
-                || rect.left < windows_work_area.left - 50
-                || rect.top < windows_work_area.top - 50) {
-
-                ::CenterWindow(hwnd, topOffset);
-            }
+        if (window_is_offscreen(hwnd)) {
+            ::CenterWindow(hwnd, topOffset);
         }
     }
 

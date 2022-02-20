@@ -24,6 +24,7 @@ class CDspAudioHostApp : public CWinAppEx {
     public:
     int ExitInstance() override;
     BOOL InitInstance() override;
+    BOOL another_instance_running(const CString mut_name);
 
     // Implementation
 
