@@ -8,6 +8,8 @@
 #include "framework.h"
 #include "DspAudioHost.h"
 #include "DspAudioHostDlg.h"
+#include "VisualManagerWindows10.h"
+#include "../win32-darkmode/win32-darkmode/DarkMode.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -42,8 +44,8 @@ int CDspAudioHostApp::ExitInstance() {
 }
 
 BOOL CDspAudioHostApp::another_instance_running(const CString mut_name) {
-    HANDLE mutex = CreateMutex(NULL, FALSE, mut_name);
-    if (mutex == NULL) {
+    m_mutex = CreateMutex(NULL, FALSE, mut_name);
+    if (m_mutex == NULL) {
         return FALSE;
     }
 
@@ -52,9 +54,10 @@ BOOL CDspAudioHostApp::another_instance_running(const CString mut_name) {
            that the process is running*/
         MessageBoxW(NULL,
             L"Another instance is already running.\n\nIf you want to run more than one "
-            L"instance, please copy DSPAudioHost to a different location, and try "
-            L"running it from there",
-            L"DSPAudioHost: Another instance running", MB_OK);
+            L"instance, please copy the folder containing DSPAudioHost to a different "
+            L"location, and try "
+            L"running it from there.",
+            L"DSPAudioHost: Another instance running", MB_OK | MB_ICONSTOP);
 
         return TRUE;
     }
@@ -74,6 +77,7 @@ BOOL CDspAudioHostApp::InitInstance() {
     // in your application.
     InitCtrls.dwICC = ICC_WIN95_CLASSES;
     InitCommonControlsEx(&InitCtrls);
+    InitDarkMode();
 
     CWinApp::InitInstance();
 

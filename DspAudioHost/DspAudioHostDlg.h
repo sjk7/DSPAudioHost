@@ -370,4 +370,6 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     std::map<HWND, std::wstring> m_child_windowsA;
     std::map<HWND, std::wstring> m_child_windowsB;
     winamp_dsp::Plugin& manageActivatePlug(winamp_dsp::Plugin&);
+    LRESULT OnThemeChanged();
+    virtual BOOL OnWndMsg(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult);
 };

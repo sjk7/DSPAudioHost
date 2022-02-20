@@ -19,13 +19,19 @@
 class CDspAudioHostApp : public CWinAppEx {
     public:
     CDspAudioHostApp();
+    virtual ~CDspAudioHostApp() {
+        if (m_mutex) {
+            ::CloseHandle(m_mutex);
+            m_mutex = nullptr;
+        }
+    }
 
     // Overrides
     public:
     int ExitInstance() override;
     BOOL InitInstance() override;
     BOOL another_instance_running(const CString mut_name);
-
+    HANDLE m_mutex = {0};
     // Implementation
 
     DECLARE_MESSAGE_MAP()

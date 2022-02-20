@@ -16,6 +16,7 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
+#include "../win32-darkmode/win32-darkmode/ListViewUtil.h"
 
 // CAboutDlg dialog used for App About
 
@@ -677,6 +678,7 @@ ON_STN_CLICKED(IDC_VU_OUT_R, &CDspAudioHostDlg::OnStnClickedVuOutR)
 ON_STN_CLICKED(IDC_CLIP, &CDspAudioHostDlg::OnStnClickedClip)
 ON_CBN_SELCHANGE(IDC_COMBO_SAMPLERATE, &CDspAudioHostDlg::OnCbnSelchangeComboSamplerate)
 ON_WM_SIZE()
+ON_WM_THEMECHANGED()
 END_MESSAGE_MAP()
 #pragma warning(default : 26454)
 
@@ -704,12 +706,13 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     ASSERT((IDM_ABOUTBOX & 0xFFF0) == IDM_ABOUTBOX);
     ASSERT(IDM_ABOUTBOX < 0xF000);
 
+    /*/
     CMFCVisualManagerOffice2007 ::SetStyle(
         CMFCVisualManagerOffice2007::Office2007_LunaBlue);
 
     CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(
         CMFCVisualManagerOffice2007)); // <--Added to support deviant themes!
-
+        /*/
     CMenu* pSysMenu = GetSystemMenu(FALSE);
     if (pSysMenu != nullptr) {
         BOOL bNameValid;
@@ -731,7 +734,14 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     setupMeters();
 
     PostMessage(WM_FIRST_SHOWN);
-
+    InitListView(listCur);
+    InitListView(listAvail);
+    bool b = AllowDarkModeForWindow(*this, true);
+    (void)b;
+    if (g_darkModeSupported) {
+        SetWindowTheme(*this, L"Explorer", nullptr);
+        SendMessageW(WM_THEMECHANGED, 0, 0);
+    }
     return TRUE; // return TRUE  unless you set the focus to a control
 }
 
@@ -1561,20 +1571,68 @@ void CDspAudioHostDlg::OnBnClickedBtnStop() {
 HBRUSH CDspAudioHostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 
     HBRUSH hbr = CDialog::OnCtlColor(pDC, pWnd, nCtlColor);
-    // this is how you stop flicker in a static text control.
-    if (CTLCOLOR_STATIC == nCtlColor && pWnd == &lblElapsedTime) {
-        if (NULL == m_brush.GetSafeHandle()) {
-            m_brush.CreateStockObject(NULL_BRUSH);
-        } else {
-            return m_brush;
-        }
-    } else {
+    // this is how you stop flicker in a static text control.#
+    if (nCtlColor == WM_CTLCOLOREDIT) {
+        TRACE("ffs\n");
+    }
 
-        if (CTLCOLOR_STATIC == nCtlColor && pWnd == &lblClip) {
-            static CBrush brush(RGB(200, 0, 0));
-            return brush;
+    if (!g_darkModeEnabled) {
+        if (CTLCOLOR_STATIC == nCtlColor && pWnd == (CWnd*)&lblElapsedTime) {
+            if (NULL == m_brush.GetSafeHandle()) {
+                m_brush.CreateStockObject(NULL_BRUSH);
+            } else {
+                return m_brush;
+            }
+        } else {
+
+            if (CTLCOLOR_STATIC == nCtlColor && pWnd == (CWnd*)&lblClip) {
+                static CBrush brush(RGB(200, 0, 0));
+                return brush;
+            }
         }
     }
+
+    if (nCtlColor == CTLCOLOR_LISTBOX) {
+        COMBOBOXINFO info;
+        info.cbSize = sizeof(info);
+        ::SendMessage(cboInput.m_hWnd, CB_GETCOMBOBOXINFO, 0, (LPARAM)&info);
+        COMBOBOXINFO info1;
+        info1.cbSize = sizeof(info1);
+        //::SendMessage(hWndComboBox1, CB_GETCOMBOBOXINFO, 0, (LPARAM)&info1);
+
+        if (pWnd->GetSafeHwnd() == info.hwndCombo) {
+            HDC dc = pDC->GetSafeHdc();
+            SetBkMode(dc, OPAQUE);
+            SetTextColor(dc, RGB(255, 255, 0));
+            SetBkColor(dc, 0x383838); // 0x383838
+            static HBRUSH comboBrush = CreateSolidBrush(0x383838); // global var
+            return comboBrush;
+        }
+    } else if (nCtlColor == WM_CTLCOLOREDIT) {
+        {
+            HWND hWnd = pWnd->GetSafeHwnd();
+            HDC dc = pDC->GetSafeHdc();
+            if (hWnd == cboInput.GetSafeHwnd()) {
+                SetBkMode(dc, OPAQUE);
+                SetTextColor(dc, RGB(255, 0, 255));
+                SetBkColor(dc, 0x383838); // 0x383838
+                static HBRUSH comboBrush = CreateSolidBrush(0x383838); // global var
+                return comboBrush;
+            }
+        }
+    }
+
+    constexpr COLORREF darkBkColor = 0x383838;
+    constexpr COLORREF darkTextColor = 0xFFFFFF;
+    static HBRUSH hbrBkgnd = nullptr;
+    if (g_darkModeSupported && g_darkModeEnabled) {
+        HDC hdc = pDC->GetSafeHdc();
+        SetTextColor(hdc, darkTextColor);
+        SetBkColor(hdc, darkBkColor);
+        if (!hbrBkgnd) hbrBkgnd = CreateSolidBrush(darkBkColor);
+        return hbrBkgnd;
+    }
+
     return hbr;
 }
 
@@ -1685,7 +1743,8 @@ void CDspAudioHostDlg::pbar_ctrl_create(
     ScreenToClient(&rect);
     GetDlgItem(idctrl)->ShowWindow(SW_HIDE);
     if (pbar.GetSafeHwnd()) {
-        ASSERT("You likely screwed up. This pbar already has a window. Are you assigning "
+        ASSERT("You likely screwed up. This pbar already has a window. Are you "
+               "assigning "
                "the wrong one?"
             == 0);
     }
@@ -1702,7 +1761,6 @@ void CDspAudioHostDlg::OnStnClickedClip() {
 }
 
 void CDspAudioHostDlg::OnCbnSelchangeComboSamplerate() {
-
     afterSamplerateChanged();
 }
 
@@ -1718,9 +1776,11 @@ void CDspAudioHostDlg::afterSamplerateChanged(bool fromUserClick) {
         if (sr != 44100) {
             CString msg(
                 L"Please note that almost all winamp dsp plugins (with the notable "
-                L"exception of Maximod)\n were never designed for anything other than "
+                L"exception of Maximod)\n were never designed for anything other "
+                L"than "
                 L"44100 "
-                L"sample rate.\n\nThey may give silent output, or crash the application "
+                L"sample rate.\n\nThey may give silent output, or crash the "
+                L"application "
                 L"if "
                 L"you try to use them with a non-44100 sample rate");
 
@@ -1739,11 +1799,48 @@ void CDspAudioHostDlg::OnSize(UINT nType, int cx, int cy) {
     /*/
         The wParam contains the reason:
 
-        SIZE_MAXIMIZED The window has been maximized. SIZE_MINIMIZED The window has been
-        minimized. SIZE_RESTORED The window has been resized, but neither the
+        SIZE_MAXIMIZED The window has been maximized. SIZE_MINIMIZED The window has
+       been minimized. SIZE_RESTORED The window has been resized, but neither the
        SIZE_MINIMIZED nor SIZE_MAXIMIZED value applies.
         /*/
     if (nType == SIZE_MINIMIZED) {
         // restorePlugWindowPositions();
     }
+}
+
+LRESULT CDspAudioHostDlg::OnThemeChanged() {
+    if (g_darkModeSupported) {
+        _AllowDarkModeForWindow(*this, g_darkModeEnabled);
+        RefreshTitleBarThemeColor(*this);
+
+        CWnd* pwndChild = GetWindow(GW_CHILD);
+        while (pwndChild) {
+            _AllowDarkModeForWindow(*pwndChild, g_darkModeEnabled);
+            ::SendMessageW(*pwndChild, WM_THEMECHANGED, 0, 0);
+            wchar_t buf[MAX_PATH] = {0};
+            ::GetWindowText(*pwndChild, buf, MAX_PATH);
+            TRACE(L"setting dark mode (%d) to window: %s\n", (int)g_darkModeEnabled, buf);
+            pwndChild = pwndChild->GetWindow(GW_HWNDNEXT);
+        }
+
+        UpdateWindow();
+    }
+
+    return 1;
+}
+
+BOOL CDspAudioHostDlg::OnWndMsg(
+    UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) {
+    switch (message) {
+        case WM_CTLCOLORLISTBOX: {
+            TRACE("ffs\n");
+            break;
+        }
+        case WM_CTLCOLOREDIT: {
+            TRACE("ffs\n");
+            break;
+        }
+    }
+
+    return __super::OnWndMsg(message, wParam, lParam, pResult);
 }
