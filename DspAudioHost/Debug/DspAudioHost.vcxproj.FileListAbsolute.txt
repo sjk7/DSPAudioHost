@@ -1,0 +1,4 @@
+V:\dev_incl_maximod\DspAudioHost\Debug\DspAudioHost.exe
+V:\dev_incl_maximod\c++\VisualStudioSpecific\DspAudioHost\Debug\DspAudioHost.exe
+V:\dev_incl_maximod\c++\VisualStudioSpecific\DspAudioHost\Debug\portaudio_x86.dll
+V:\dev_incl_maximod\c++\VisualStudioSpecific\DspAudioHost\Debug\portaudio_x86.pdb

@@ -1,0 +1,87 @@
+[
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Bessel.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Bessel.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Biquad.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Biquad.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Butterworth.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Butterworth.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Cascade.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Cascade.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\ChebyshevI.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\ChebyshevI.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\ChebyshevII.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\ChebyshevII.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Custom.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Custom.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Design.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Design.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Documentation.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Documentation.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Elliptic.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Elliptic.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Filter.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Filter.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Legendre.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Legendre.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Param.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\Param.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\PoleFilter.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\PoleFilter.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\RBJ.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\RBJ.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\RootFinder.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\RootFinder.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\Builds\\VisualStudio2010",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\/..\/include \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _LIB \/EHsc \/RTC1 \/MTd \/GS \/Gy \/fp:precise \/GR \/Fo\"U:\\DSPAudio\\DspAudioHost\\DspAudioHost-Output\\Intermediates\\DSPFilters-Win32Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\State.cpp\"",
+    "file": "U:\\DSPAudio\\Helpers\\DSPFilters\\shared\\DSPFilters\\source\\State.cpp"
+  }
+]

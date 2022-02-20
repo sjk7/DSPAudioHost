@@ -1,0 +1,132 @@
+[
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_allocation.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_allocation.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_converters.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_converters.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_cpuload.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_cpuload.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_debugprint.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_debugprint.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_dither.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_dither.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_front.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_front.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_process.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_process.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_ringbuffer.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_ringbuffer.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_stream.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_stream.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\common\\pa_trace.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\common\\pa_trace.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\dsound\\pa_win_ds.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\dsound\\pa_win_ds.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\dsound\\pa_win_ds_dynlink.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\dsound\\pa_win_ds_dynlink.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\skeleton\\pa_hostapi_skeleton.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\skeleton\\pa_hostapi_skeleton.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\wasapi\\pa_win_wasapi.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\wasapi\\pa_win_wasapi.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\wdmks\\pa_win_wdmks.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\wdmks\\pa_win_wdmks.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\wmme\\pa_win_wmme.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\wmme\\pa_win_wmme.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_coinitialize.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_coinitialize.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_hostapis.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_hostapis.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_util.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_util.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_waveformat.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_waveformat.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_wdmks_utils.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_win_wdmks_utils.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/Fo\"Win32\\Debug\\\\\" \/Gd \/TC   \"U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_x86_plain_converters.c\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\os\\win\\pa_x86_plain_converters.c"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\hostapi\\asio\\ASIOSDK\\host \/I..\\src\\hostapi\\asio\\ASIOSDK\\host\\pc \/I..\\src\\hostapi\\asio\\ASIOSDK\\common \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Win32\\Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\ASIOSDK\\common\\asio.cpp\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\ASIOSDK\\common\\asio.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\hostapi\\asio\\ASIOSDK\\host \/I..\\src\\hostapi\\asio\\ASIOSDK\\host\\pc \/I..\\src\\hostapi\\asio\\ASIOSDK\\common \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Win32\\Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\ASIOSDK\\host\\asiodrivers.cpp\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\ASIOSDK\\host\\asiodrivers.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\hostapi\\asio\\ASIOSDK\\host \/I..\\src\\hostapi\\asio\\ASIOSDK\\host\\pc \/I..\\src\\hostapi\\asio\\ASIOSDK\\common \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Win32\\Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\ASIOSDK\\host\\pc\\asiolist.cpp\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\ASIOSDK\\host\\pc\\asiolist.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\portaudio\\msvc",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/I..\\src\\hostapi\\asio\\ASIOSDK\\host \/I..\\src\\hostapi\\asio\\ASIOSDK\\host\\pc \/I..\\src\\hostapi\\asio\\ASIOSDK\\common \/I..\\src\\common \/I..\\include \/I.\\ \/I..\\src\\os\\win \/ZI \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _DEBUG \/D _USRDLL \/D PA_ENABLE_DEBUG_OUTPUT \/D _CRT_SECURE_NO_DEPRECATE \/D PAWIN_USE_WDMKS_DEVICE_INFO \/D PA_USE_ASIO=1 \/D PA_USE_DS=1 \/D PA_USE_WMME=1 \/D PA_USE_WASAPI=1 \/D PA_USE_WDMKS=1 \/D _VC80_UPGRADE=0x0600 \/D _WINDLL \/D _CRT_SECURE_NO_WARNINGS \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Win32\\Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\pa_asio.cpp\"",
+    "file": "U:\\DSPAudio\\portaudio\\src\\hostapi\\asio\\pa_asio.cpp"
+  }
+]

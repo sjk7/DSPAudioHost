@@ -1,0 +1,156 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="DspAudioHost.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DspAudioHostDlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="framework.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="targetver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Resource.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\portaudio\portaudio_wrapper.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="DSPHost.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Winamp_SDK\DSP.H">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Winamp_SDK\GEN.H">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Winamp_SDK\IN2.H">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Winamp_SDK\ipc_pe.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Winamp_SDK\OUT.H">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Winamp_SDK\wa_dlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Winamp_SDK\wa_ipc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PASettings.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helpers\PBar.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="db_conversions.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="DspAudioHost.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="DspAudioHostDlg.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Helpers\PBar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="DspAudioHost.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="res\DspAudioHost.rc2">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="res\DspAudioHost.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Custom-Icon-Design-Pretty-Office-8-Sound-on.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\icon1.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\settings.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Graphicloads-100-Flat-Reload.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Cjdowner-Cryptocurrency-Flat-Cryptonex-CNX.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\old_view_refresh.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\refresh.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="C:\Users\DevNVME\Desktop\refresh.bmp">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Saki-Snowish-Plus.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\Gakuseisean-Ivista-2-Alarm-Plus.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\stop-icon-13405-Windows.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\icons8-pause-button-48.png">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\icon2.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\icons8-pause-button-48.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\prettypause.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\prettyplay.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\FlatPlay.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="res\FlatStop.ico">
+      <Filter>Resource Files</Filter>
+    </Image>
+  </ItemGroup>
+</Project>

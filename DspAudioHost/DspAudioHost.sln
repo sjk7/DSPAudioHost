@@ -1,0 +1,44 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32106.194
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DspAudioHost", "DspAudioHost.vcxproj", "{3B1D2959-9DAA-480C-9D22-4ABB6CDF0542}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "portaudio", "..\portaudio\msvc\portaudio.vcxproj", "{0A18A071-125E-442F-AFF7-A3F68ABECF99}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DSPFilters", "..\Helpers\DSPFilters\shared\DSPFilters\Builds\VisualStudio2010\DSPFilters.vcxproj", "{A34C661C-A167-4B61-8086-54957C90E800}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+		ReleaseMinDependency|x86 = ReleaseMinDependency|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3B1D2959-9DAA-480C-9D22-4ABB6CDF0542}.Debug|x86.ActiveCfg = Debug|Win32
+		{3B1D2959-9DAA-480C-9D22-4ABB6CDF0542}.Debug|x86.Build.0 = Debug|Win32
+		{3B1D2959-9DAA-480C-9D22-4ABB6CDF0542}.Release|x86.ActiveCfg = Release|Win32
+		{3B1D2959-9DAA-480C-9D22-4ABB6CDF0542}.Release|x86.Build.0 = Release|Win32
+		{3B1D2959-9DAA-480C-9D22-4ABB6CDF0542}.ReleaseMinDependency|x86.ActiveCfg = Release|Win32
+		{3B1D2959-9DAA-480C-9D22-4ABB6CDF0542}.ReleaseMinDependency|x86.Build.0 = Release|Win32
+		{0A18A071-125E-442F-AFF7-A3F68ABECF99}.Debug|x86.ActiveCfg = Debug|Win32
+		{0A18A071-125E-442F-AFF7-A3F68ABECF99}.Debug|x86.Build.0 = Debug|Win32
+		{0A18A071-125E-442F-AFF7-A3F68ABECF99}.Release|x86.ActiveCfg = Release|Win32
+		{0A18A071-125E-442F-AFF7-A3F68ABECF99}.Release|x86.Build.0 = Release|Win32
+		{0A18A071-125E-442F-AFF7-A3F68ABECF99}.ReleaseMinDependency|x86.ActiveCfg = ReleaseMinDependency|Win32
+		{0A18A071-125E-442F-AFF7-A3F68ABECF99}.ReleaseMinDependency|x86.Build.0 = ReleaseMinDependency|Win32
+		{A34C661C-A167-4B61-8086-54957C90E800}.Debug|x86.ActiveCfg = Debug|Win32
+		{A34C661C-A167-4B61-8086-54957C90E800}.Debug|x86.Build.0 = Debug|Win32
+		{A34C661C-A167-4B61-8086-54957C90E800}.Release|x86.ActiveCfg = Release|Win32
+		{A34C661C-A167-4B61-8086-54957C90E800}.Release|x86.Build.0 = Release|Win32
+		{A34C661C-A167-4B61-8086-54957C90E800}.ReleaseMinDependency|x86.ActiveCfg = Release|Win32
+		{A34C661C-A167-4B61-8086-54957C90E800}.ReleaseMinDependency|x86.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {876D7FF8-37C7-4C92-8730-173C4218FE7A}
+	EndGlobalSection
+EndGlobal

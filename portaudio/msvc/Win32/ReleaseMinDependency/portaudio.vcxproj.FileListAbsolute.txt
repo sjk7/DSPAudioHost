@@ -1,0 +1,2 @@
+V:\dev_incl_maximod\c++\VisualStudioSpecific\portaudio\msvc\Win32\ReleaseMinDependency\portaudio_x86.dll
+U:\DSPAudio\portaudio\msvc\Win32\ReleaseMinDependency\portaudio_x86.dll
