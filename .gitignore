@@ -20,7 +20,7 @@
 *.iobj
 *.ipdb
 *.sarif
-
+*.xml
 
 
 ComponentFile.txt
