@@ -9,7 +9,9 @@
 #include "DspAudioHost.h"
 #include "DspAudioHostDlg.h"
 #include "VisualManagerWindows10.h"
-#include "../win32-darkmode/win32-darkmode/DarkMode.h"
+// #include "../win32-darkmode/win32-darkmode/DarkMode.h"
+
+#pragma comment(lib, "winmm")
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -77,7 +79,7 @@ BOOL CDspAudioHostApp::InitInstance() {
     // in your application.
     InitCtrls.dwICC = ICC_WIN95_CLASSES;
     InitCommonControlsEx(&InitCtrls);
-    InitDarkMode();
+    // InitDarkMode();
 
     CWinApp::InitInstance();
 

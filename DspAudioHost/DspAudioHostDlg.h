@@ -12,6 +12,7 @@
 #include <fstream>
 #include "../Helpers/PBar.h"
 #include "db_conversions.h"
+#include "DSPHost.h"
 
 class CSortMFCListCtrl : public CMFCListCtrl
 
@@ -372,4 +373,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     winamp_dsp::Plugin& manageActivatePlug(winamp_dsp::Plugin&);
     LRESULT OnThemeChanged();
     virtual BOOL OnWndMsg(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult);
+    afx_msg void OnBnClickedBtnConfigAudio();
+    void savePlugWindowPositions();
+    BOOL restorePlugWindowPosition(const winamp_dsp::Plugin& plugin);
 };

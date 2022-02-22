@@ -16,7 +16,31 @@
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-#include "../win32-darkmode/win32-darkmode/ListViewUtil.h"
+// #include "../win32-darkmode/win32-darkmode/ListViewUtil.h"
+
+HWND hwnd_found_plug_config = nullptr;
+
+static inline BOOL CALLBACK find_plug_handle_proc(_In_ HWND hwnd, _In_ LPARAM lParam) {
+
+    std::wstring looking_for((wchar_t*)lParam);
+    std::wstring this_one(MAX_PATH, L'\0');
+    assert(this_one.size() == MAX_PATH);
+    ::GetWindowText(hwnd, this_one.data(), MAX_PATH);
+    this_one.resize(this_one.find(L'\0'));
+    if (this_one == looking_for) {
+        hwnd_found_plug_config = hwnd;
+        return FALSE;
+    }
+    return TRUE;
+}
+
+HWND find_plug_window(const std::wstring& txt) {
+    hwnd_found_plug_config = nullptr;
+    EnumThreadWindows(GetCurrentThreadId(), &find_plug_handle_proc, (LPARAM)txt.data());
+    return hwnd_found_plug_config;
+}
+
+HWND hwnd_found = 0;
 
 // CAboutDlg dialog used for App About
 
@@ -393,9 +417,7 @@ void CDspAudioHostDlg::myInitDialog() {
         m_portaudio->monoInputSet(false);
     }
     EnableWindow(TRUE);
-    // SetActiveWindow();
-    // SetForegroundWindow();
-    //::SetWindowPos(GetSafeHwnd(), HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+
     if (m_portaudio->errCode() == 0) {
         OnBnClickedBtnPlay();
     }
@@ -473,7 +495,7 @@ int CDspAudioHostDlg::myPreparePortAudio(const portaudio_cpp::ChannelsType& chan
     }
 }
 void CDspAudioHostDlg::showPaProgress(const char* what) {
-    SetWindowTextA(lblPa.GetSafeHwnd(), what);
+    if (IsWindow(*this)) SetWindowTextA(lblPa.GetSafeHwnd(), what);
 }
 const winamp_dsp::plugins_type& CDspAudioHostDlg::findAvailDSPs() {
 
@@ -679,8 +701,39 @@ ON_STN_CLICKED(IDC_CLIP, &CDspAudioHostDlg::OnStnClickedClip)
 ON_CBN_SELCHANGE(IDC_COMBO_SAMPLERATE, &CDspAudioHostDlg::OnCbnSelchangeComboSamplerate)
 ON_WM_SIZE()
 ON_WM_THEMECHANGED()
+ON_BN_CLICKED(IDC_BTN_CONFIG_AUDIO, &CDspAudioHostDlg::OnBnClickedBtnConfigAudio)
 END_MESSAGE_MAP()
 #pragma warning(default : 26454)
+
+RECT my_get_window_position(HWND hwnd) {
+    RECT rect = {0};
+    WINDOWPLACEMENT wp = {0};
+    wp.length = sizeof(WINDOWPLACEMENT);
+    ASSERT(IsWindow(hwnd));
+    ::GetWindowPlacement(hwnd, &wp);
+
+    rect = wp.rcNormalPosition;
+    return rect;
+}
+
+static bool window_is_offscreen(HWND hwnd) {
+
+    // int nScreenWidth = GetSystemMetrics(SM_CXSCREEN);
+    // int nScreenHeight = GetSystemMetrics(SM_CYSCREEN);
+    CRect windows_work_area;
+    RECT rect = my_get_window_position(hwnd);
+    SystemParametersInfo(SPI_GETWORKAREA, 0, &windows_work_area, 0);
+
+    if (rect.bottom > windows_work_area.bottom + 50
+        || rect.right > windows_work_area.right + 50
+        || rect.left < windows_work_area.left - 50
+        || rect.top < windows_work_area.top - 50) {
+
+        return true;
+    }
+
+    return false;
+}
 
 // CDspAudioHostDlg message handlers
 
@@ -734,13 +787,32 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     setupMeters();
 
     PostMessage(WM_FIRST_SHOWN);
-    InitListView(listCur);
-    InitListView(listAvail);
-    bool b = AllowDarkModeForWindow(*this, true);
-    (void)b;
-    if (g_darkModeSupported) {
-        SetWindowTheme(*this, L"Explorer", nullptr);
-        SendMessageW(WM_THEMECHANGED, 0, 0);
+
+    WINDOWPLACEMENT wp = {0};
+    wp.length = sizeof(wp);
+
+    UINT nSize = 0;
+
+    LPBYTE pPlacementBytes = NULL;
+    WINDOWPLACEMENT orig = {0};
+    orig.length = sizeof(orig);
+
+    GetWindowPlacement(&orig);
+    if (theApp.GetProfileBinary(L"MainWindow", L"Position", &pPlacementBytes, &nSize)) {
+        ASSERT(pPlacementBytes != NULL);
+        if (pPlacementBytes != NULL) {
+            ASSERT(nSize == sizeof(WINDOWPLACEMENT));
+            if (nSize == sizeof(WINDOWPLACEMENT)) {
+                memcpy(&wp, pPlacementBytes, nSize);
+            }
+            delete[] pPlacementBytes;
+            wp.showCmd = 1;
+            this->SetWindowPlacement(&wp);
+            if (window_is_offscreen(m_hWnd)) {
+                orig.showCmd = 1;
+                SetWindowPlacement(&orig);
+            }
+        }
     }
     return TRUE; // return TRUE  unless you set the focus to a control
 }
@@ -967,10 +1039,81 @@ void CDspAudioHostDlg::removeActivatedPlugFromUI(int idx) {
     }
 }
 
+BOOL CDspAudioHostDlg::restorePlugWindowPosition(const winamp_dsp::Plugin& plug) {
+
+    HWND hwnd = find_plug_window(plug.configHandleWindowText());
+    ASSERT(hwnd);
+    if (!hwnd) {
+        hwnd = FindPluginWindow(plug.description());
+    }
+
+    if (!hwnd) return FALSE;
+    WINDOWPLACEMENT wp = {0};
+    wp.length = sizeof(wp);
+    CString wdesc(plug.description().data());
+
+    UINT nSize = 0;
+    BOOL ret = FALSE;
+    LPBYTE pPlacementBytes = NULL;
+    if (theApp.GetProfileBinary(
+            L"PlugWindowPositions", wdesc, &pPlacementBytes, &nSize)) {
+        ASSERT(pPlacementBytes != NULL);
+        if (pPlacementBytes != NULL) {
+            ASSERT(nSize == sizeof(WINDOWPLACEMENT));
+            if (nSize == sizeof(WINDOWPLACEMENT)) {
+                memcpy(&wp, pPlacementBytes, nSize);
+            }
+            delete[] pPlacementBytes;
+            wp.showCmd = 1;
+            ret = ::SetWindowPlacement(hwnd, &wp);
+        }
+    }
+
+    return ret;
+}
+
+void CDspAudioHostDlg::savePlugWindowPositions() {
+
+    WINDOWPLACEMENT mypos = {0};
+    mypos.length = sizeof(mypos);
+    if (GetWindowPlacement(&mypos)) {
+        theApp.WriteProfileBinary(
+            L"MainWindow", L"Position", (LPBYTE)&mypos, sizeof(mypos));
+    }
+
+    for (auto&& plug : m_winamp_host.activePlugins()) {
+
+        HWND hwnd = plug.configHandleWindowGet();
+        if (!IsWindow(hwnd)) { // eg when user closes plugin window altogether
+            hwnd = find_plug_window(plug.configHandleWindowText());
+        }
+        ASSERT(hwnd);
+        if (!hwnd) {
+            hwnd = FindPluginWindow(plug.description());
+        }
+        ASSERT(hwnd);
+        if (IsWindow(hwnd)) {
+            WINDOWPLACEMENT wp = {0};
+            wp.length = sizeof(wp);
+
+            BOOL got = ::GetWindowPlacement(hwnd, &wp);
+            ASSERT(got);
+            CString wdesc(plug.description().data());
+            if (got) {
+                theApp.WriteProfileBinary(
+                    L"PlugWindowPositions", wdesc, (LPBYTE)(&wp), sizeof(wp));
+            }
+        }
+    }
+}
+
 void CDspAudioHostDlg::settingsSavePlugins() {
     std::string plugs = m_winamp_host.getActivePlugsAsString();
     CString ws(plugs.data());
     theApp.WriteProfileStringW(L"WinampHost", L"ActivePlugs", ws);
+
+    savePlugWindowPositions();
+
     BOOL b = FALSE;
     if (m_portaudio->m_bMonoInput) {
         b = TRUE;
@@ -1010,6 +1153,7 @@ void CDspAudioHostDlg::settingsGetPlugins(bool apply) {
     const auto b = theApp.GetProfileIntW(L"WinampHost", L"ForceMonoInput", FALSE);
     chkForceMono.SetCheck(b);
     OnBnClickedChkForceMono();
+
     SetActiveWindow();
 }
 
@@ -1048,20 +1192,24 @@ winamp_dsp::Plugin& CDspAudioHostDlg::manageActivatePlug(winamp_dsp::Plugin& plu
     std::set_symmetric_difference(
         a.begin(), a.end(), b.begin(), b.end(), std::inserter(diff, diff.begin()));
 
+    const auto this_hwnd = this->m_hWnd;
     size_t ctr = 0;
+
     for (const auto& pr : diff) {
         ctr++;
-        if (ctr == diff.size()) {
-            // in my tests, the plug's main dialog is the last window in the map
-            TRACE(L"Have new child window with text: %s\n", pr.second.data());
-            activated.configHandleSet(pr.first);
+        auto parent = ::GetParent(pr.first);
+        if (parent == this_hwnd) {
+            TRACE(L"Found plug window, with text: %s\n", pr.second.data());
+            ASSERT(IsWindow(pr.first));
+            activated.configHandleWindowTextSet(pr.second);
+            activated.configHandleWindowSet(pr.first);
+            break;
         }
     }
 
     return activated;
 }
 
-HWND hwnd_found = 0;
 winamp_dsp::Plugin* CDspAudioHostDlg::myActivatePlug(
     winamp_dsp::Plugin* plug, bool addToUI) {
 
@@ -1079,13 +1227,14 @@ winamp_dsp::Plugin* CDspAudioHostDlg::myActivatePlug(
     try {
 
         auto& activated = manageActivatePlug(*plug);
-        hwnd_found = plug->configHandle();
+        hwnd_found = find_plug_window(activated.configHandleWindowText());
 
         if (hwnd_found == nullptr) {
             hwnd_found = FindPluginWindow(activated.description());
         }
 
         if (hwnd_found) {
+            restorePlugWindowPosition(activated);
             ::BringWindowToTop(hwnd_found);
             ::SetActiveWindow(hwnd_found);
             ::ShowWindow(hwnd_found, SW_SHOWNORMAL);
@@ -1238,7 +1387,12 @@ int getSelectedIndex(CListCtrl& lv) {
 
 void CDspAudioHostDlg::OnBnClickedBtnRemove() {
     POSITION pos = this->listCur.GetFirstSelectedItemPosition();
-    bool was_running = m_portaudio->m_running;
+
+    bool was_running = false;
+    if (this->m_portaudio) {
+        was_running = m_portaudio->m_running;
+        m_portaudio->Stop();
+    }
 
     if (pos == NULL) {
         MessageBox(L"You need to select at least one plugin on the right list first.");
@@ -1279,7 +1433,7 @@ void CDspAudioHostDlg::myCurListShowConfig(int idx) {
             MessageBox(L"Unexpected: could not find the plugin");
         } else {
             plug->showConfig();
-            auto hWnd = plug->configHandle();
+            auto hWnd = find_plug_window(plug->configHandleWindowText());
             if (hWnd == nullptr) {
                 hWnd = FindPluginWindow(plug->description()); //-V1048
             }
@@ -1377,34 +1531,6 @@ static inline BOOL CenterWindow(HWND hwndWindow, int topOffset = 0) {
 
     return FALSE;
 }
-RECT my_get_window_position(HWND hwnd) {
-    RECT rect = {0};
-    WINDOWPLACEMENT wp = {0};
-    wp.length = sizeof(WINDOWPLACEMENT);
-    BOOL gotp = ::GetWindowPlacement(hwnd, &wp);
-    ASSERT(gotp);
-    rect = wp.rcNormalPosition;
-    return rect;
-}
-
-static bool window_is_offscreen(HWND hwnd) {
-
-    // int nScreenWidth = GetSystemMetrics(SM_CXSCREEN);
-    // int nScreenHeight = GetSystemMetrics(SM_CYSCREEN);
-    CRect windows_work_area;
-    RECT rect = my_get_window_position(hwnd);
-    SystemParametersInfo(SPI_GETWORKAREA, 0, &windows_work_area, 0);
-
-    if (rect.bottom > windows_work_area.bottom + 50
-        || rect.right > windows_work_area.right + 50
-        || rect.left < windows_work_area.left - 50
-        || rect.top < windows_work_area.top - 50) {
-
-        return true;
-    }
-
-    return false;
-}
 
 // if you don't force then it will only be centred on me when hwnd is off the screen
 // partially or completely
@@ -1480,7 +1606,13 @@ void CDspAudioHostDlg::OnClose() {
 
     if (m_portaudio) m_portaudio->Stop();
 
+    // make plugs visible before you save their positions
+    for (int i = 0; i < listCur.GetItemCount(); i++) {
+        myCurListShowConfig(i);
+        doEvents();
+    }
     settingsSavePlugins();
+
     m_paSettings.saveAll();
     __super::OnClose();
 }
@@ -1493,7 +1625,8 @@ void CDspAudioHostDlg::OnTimer(UINT_PTR nIDEvent) {
     }
     busy = true;
     showMeters();
-    static std::wstring ws(L"", 256);
+    static std::wstring ws;
+    if (ws.size() != 1024) ws.resize(1024);
     std::wstring sw;
 
     if (m_portaudio) {
@@ -1553,10 +1686,13 @@ void CDspAudioHostDlg::OnBnClickedBtnPlay() {
         }
     } catch (const std::exception& e) {
         MessageBox(CStringW(e.what()));
-        //::ShellExecute(*this, L"rundll32.exe", L"shell32.dll,Control_RunDLL
-        //: mmsys.cpl,,2",
-        //    L"", L"", SW_SHOWNORMAL);
-        ::WinExec("rundll32.exe shell32.dll,Control_RunDLL mmsys.cpl,,0", SW_SHOWNORMAL);
+//::ShellExecute(*this, L"rundll32.exe", L"shell32.dll,Control_RunDLL
+//: mmsys.cpl,,2",
+//    L"", L"", SW_SHOWNORMAL);
+#pragma warning(disable : 28159)
+        if (std::string_view(m_portaudio->m_currentApi.name) != "ASIO")
+            ::WinExec(
+                "rundll32.exe shell32.dll,Control_RunDLL mmsys.cpl,,0", SW_SHOWNORMAL);
     }
 }
 
@@ -1572,11 +1708,7 @@ HBRUSH CDspAudioHostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 
     HBRUSH hbr = CDialog::OnCtlColor(pDC, pWnd, nCtlColor);
     // this is how you stop flicker in a static text control.#
-    if (nCtlColor == WM_CTLCOLOREDIT) {
-        TRACE("ffs\n");
-    }
-
-    if (!g_darkModeEnabled) {
+    if (true) {
         if (CTLCOLOR_STATIC == nCtlColor && pWnd == (CWnd*)&lblElapsedTime) {
             if (NULL == m_brush.GetSafeHandle()) {
                 m_brush.CreateStockObject(NULL_BRUSH);
@@ -1592,6 +1724,7 @@ HBRUSH CDspAudioHostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
         }
     }
 
+    /*/
     if (nCtlColor == CTLCOLOR_LISTBOX) {
         COMBOBOXINFO info;
         info.cbSize = sizeof(info);
@@ -1632,6 +1765,7 @@ HBRUSH CDspAudioHostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
         if (!hbrBkgnd) hbrBkgnd = CreateSolidBrush(darkBkColor);
         return hbrBkgnd;
     }
+    /*/
 
     return hbr;
 }
@@ -1706,14 +1840,14 @@ void CDspAudioHostDlg::OnStnClickedVuOutR() {
 void CDspAudioHostDlg::showMeters() {
     double left = 0;
     double right = 0;
-    if (m_portaudio) {
+    if (m_portaudio && m_portaudio->m_running) {
         const auto& env = m_portaudio->m_env_output.m_env;
         cpp::audio::envelope_val<double>(left, right, 2, env[0], env[1], 10000L, 80L);
     }
     vuOutL.value_set(left);
     vuOutR.value_set(right);
 
-    if (m_portaudio) {
+    if (m_portaudio && m_portaudio->m_running) {
         const auto& env = m_portaudio->m_env_input.m_env;
         cpp::audio::envelope_val<double>(left, right, 2, env[0], env[1], 10000L, 80L);
         showClipped();
@@ -1809,6 +1943,7 @@ void CDspAudioHostDlg::OnSize(UINT nType, int cx, int cy) {
 }
 
 LRESULT CDspAudioHostDlg::OnThemeChanged() {
+    /*/
     if (g_darkModeSupported) {
         _AllowDarkModeForWindow(*this, g_darkModeEnabled);
         RefreshTitleBarThemeColor(*this);
@@ -1825,22 +1960,19 @@ LRESULT CDspAudioHostDlg::OnThemeChanged() {
 
         UpdateWindow();
     }
-
+    /*/
     return 1;
 }
 
+#define WM_WININICHANGE 0x001A
+#define WM_SETTINGCHANGE WM_WININICHANGE
+
 BOOL CDspAudioHostDlg::OnWndMsg(
     UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) {
-    switch (message) {
-        case WM_CTLCOLORLISTBOX: {
-            TRACE("ffs\n");
-            break;
-        }
-        case WM_CTLCOLOREDIT: {
-            TRACE("ffs\n");
-            break;
-        }
-    }
 
     return __super::OnWndMsg(message, wParam, lParam, pResult);
+}
+
+void CDspAudioHostDlg::OnBnClickedBtnConfigAudio() {
+    ::WinExec("rundll32.exe shell32.dll,Control_RunDLL mmsys.cpl,,0", SW_SHOWNORMAL);
 }

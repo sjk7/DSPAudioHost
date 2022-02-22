@@ -30,7 +30,6 @@
 #define IDC_LIST_AVAIL                  1007
 #define IDC_LIST_CUR                    1008
 #define IDC_BTN_TEST                    1009
-#define IDC_COMBO_API2                  1009
 #define IDC_COMBO_SAMPLERATE            1009
 #define IDC_BTN_REFRESH_PLUGS2          1010
 #define IDC_LIST_AVAIL2                 1011
@@ -55,6 +54,8 @@
 #define IDC_VU_IN_L                     1028
 #define IDC_VU_IN_R                     1029
 #define IDC_CLIP                        1030
+#define IDC_BUTTON1                     1031
+#define IDC_BTN_CONFIG_AUDIO            1031
 
 // Next default values for new objects
 // 
@@ -62,7 +63,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        150
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1031
+#define _APS_NEXT_CONTROL_VALUE         1032
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

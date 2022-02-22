@@ -335,7 +335,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         std::string api_name;
         std::string input_name;
         std::string output_name;
-        bool was_running;
+        bool was_running{false};
     };
 
     info_t info() const {
@@ -406,8 +406,12 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         op.device = m_currentDevices[1].index;
         op.sampleFormat = sampleFormat;
         m_errcode = Pa_IsFormatSupported(&ip, &op, (double)samplerate.m_value);
+
         if (m_errcode != paNoError) {
             std::string msg("Portaudio: Requested properties not supported\n\n");
+            msg += Pa_GetErrorText(m_errcode);
+            msg += "\n";
+            msg += Pa_GetLastHostErrorInfo()->errorText;
 
             if (m_errcode == paInvalidSampleRate) {
                 msg = ("Required sample rate of ");
@@ -418,10 +422,14 @@ template <typename AUDIOCALLBACK> struct PortAudio {
                 msg += "\n\n\nPortaudio reports:\n";
                 msg += Pa_GetLastHostErrorInfo()->errorText;
                 throw(std::runtime_error(msg));
+            } else {
+                if (m_errcode != paInvalidChannelCount) {
+                    throw std::runtime_error(msg);
+                }
             }
 
             if (m_errcode == paInvalidChannelCount) {
-
+                msg = "";
                 msg += Pa_GetErrorText(m_errcode);
                 msg += "\n\n";
                 msg += Pa_GetLastHostErrorInfo()->errorText;

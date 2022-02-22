@@ -71,14 +71,22 @@ class Plugin {
         winampDSPModule* module() const noexcept { return m_module; }
         void module_set(winampDSPModule* p) { m_module = p; };
         bool for_enumeration_only{true};
-        void configHandleSet(HWND h) { m_config_window = h; }
-        HWND configHandle() const { return m_config_window; }
+        void configHandleWindowTextSet(const std::wstring& s) {
+            m_config_window_text = s;
+        }
+        const std::wstring& configHandleWindowText() const {
+            return m_config_window_text;
+        }
+
+        void configHandleWindowSet(HWND hwnd) { m_config_hwnd = hwnd; }
+        HWND configHandleWindowGet() const noexcept { return m_config_hwnd; }
 
         private:
         HMODULE hinst = 0;
         winampDSPHeader* m_header = nullptr;
         winampDSPModule* m_module = nullptr;
-        HWND m_config_window = nullptr;
+        std::wstring m_config_window_text;
+        HWND m_config_hwnd = nullptr;
     };
     data m_data;
 
@@ -284,9 +292,14 @@ class Plugin {
 #endif
     }
 
-    void configHandleSet(HWND h) { m_data.configHandleSet(h); }
+    void configHandleWindowTextSet(const std::wstring& h) {
+        m_data.configHandleWindowTextSet(h);
+    }
 
-    HWND configHandle() const { return m_data.configHandle(); }
+    void configHandleWindowSet(HWND h) { m_data.configHandleWindowSet(h); }
+    HWND configHandleWindowGet() const noexcept { return m_data.configHandleWindowGet(); }
+
+    auto& configHandleWindowText() const { return m_data.configHandleWindowText(); }
 
     public:
     Plugin(const Plugin& other) : m_data() {
