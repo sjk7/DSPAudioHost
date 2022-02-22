@@ -21,6 +21,7 @@
 *.ipdb
 *.sarif
 *.xml
+*.enc
 
 
 ComponentFile.txt
