@@ -14,7 +14,7 @@ struct PASettings {
     static inline constexpr auto PP_ENTRY = L"Process Priority";
     static inline constexpr auto SR_ENTRY = L"Samplerate";
 
-    PASettings(bool loadAll = true) : m_pri(0) {
+    PASettings(bool loadAll = false) : m_pri(0) {
         if (loadAll) getAll();
     }
     ~PASettings() { saveAll(); }

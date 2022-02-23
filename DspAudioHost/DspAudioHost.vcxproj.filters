@@ -78,6 +78,9 @@
     <ClInclude Include="..\win32-darkmode\win32-darkmode\ListViewUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="junk.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DspAudioHost.cpp">

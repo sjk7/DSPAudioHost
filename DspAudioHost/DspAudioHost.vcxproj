@@ -98,7 +98,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>
-      <WarningLevel>Level3</WarningLevel>
+      <WarningLevel>Level4</WarningLevel>
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_WINDOWS;_DEBUG;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS;DSPAUDIOHOST</PreprocessorDefinitions>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -218,6 +218,7 @@
     <ClInclude Include="DSPHost.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="db_conversions.h" />
+    <ClInclude Include="junk.h" />
     <ClInclude Include="PASettings.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="Resource.h" />

@@ -45,7 +45,7 @@ int CDspAudioHostApp::ExitInstance() {
     return 0;
 }
 
-BOOL CDspAudioHostApp::another_instance_running(const CString mut_name) {
+BOOL CDspAudioHostApp::another_instance_running(const CString& mut_name) {
     m_mutex = CreateMutex(NULL, FALSE, mut_name);
     if (m_mutex == NULL) {
         return FALSE;

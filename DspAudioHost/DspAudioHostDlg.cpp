@@ -104,7 +104,12 @@ void CDspAudioHostDlg::paSettingsLoad() {
     assert(m_portaudio->hasNotification(this));
     m_loadingPaSettings = TRUE;
 
-    m_paSettings.getAll();
+    std::string s = GetCommandLineA();
+    if (s.find("safemode") == std::string::npos) {
+        m_paSettings.getAll();
+    } else {
+    }
+
     CString what;
     try {
 
@@ -396,7 +401,12 @@ void CDspAudioHostDlg::myInitDialog() {
     findAvailDSPs();
     showAvailDSPs();
 
-    settingsGetPlugins(true);
+    std::string s = GetCommandLineA();
+    if (s.find("safemode") == std::string::npos) {
+        settingsGetPlugins(true);
+    } else {
+    }
+
     this->waitForPortAudio();
 
     {
@@ -471,6 +481,26 @@ void myFillDevices(int forInOrOut,
 void CDspAudioHostDlg::myShowCurrentDevice(int forInOrOut) {
     const auto& cur = m_portaudio->m_currentDevices[forInOrOut];
     const CString inName(cur.extendedName.data());
+
+    const auto& types
+        = m_portaudio->m_currentDevices[forInOrOut].get_supported_audio_types();
+    std::string s("Device ");
+    s += m_portaudio->m_currentDevices[forInOrOut].extendedName;
+    s += " supports the following:\n";
+    for (const auto& t : types) {
+
+        s += "Channels: ";
+        s += std::to_string(t.channels);
+        s += "\nBitdepth:";
+        s += t.fmt.to_string();
+        s += "\nAt Samplerate: ";
+        s += std::to_string(t.samplerate);
+        s += "\n\n";
+    }
+    CString ws(s.c_str());
+    const auto ffs = ws.GetLength();
+    TRACE(L"ffs\n%s\n", ws.GetBuffer());
+
     auto* pcbo = &this->cboInput;
     if (forInOrOut == portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE) {
         pcbo = &this->cboOutput;
@@ -798,22 +828,29 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     orig.length = sizeof(orig);
 
     GetWindowPlacement(&orig);
-    if (theApp.GetProfileBinary(L"MainWindow", L"Position", &pPlacementBytes, &nSize)) {
-        ASSERT(pPlacementBytes != NULL);
-        if (pPlacementBytes != NULL) {
-            ASSERT(nSize == sizeof(WINDOWPLACEMENT));
-            if (nSize == sizeof(WINDOWPLACEMENT)) {
-                memcpy(&wp, pPlacementBytes, nSize);
-            }
-            delete[] pPlacementBytes;
-            wp.showCmd = 1;
-            this->SetWindowPlacement(&wp);
-            if (window_is_offscreen(m_hWnd)) {
-                orig.showCmd = 1;
-                SetWindowPlacement(&orig);
+    std::string s = GetCommandLineA();
+    if (s.find("safemode") == std::string::npos) {
+        if (theApp.GetProfileBinary(
+                L"MainWindow", L"Position", &pPlacementBytes, &nSize)) {
+            ASSERT(pPlacementBytes != NULL);
+            if (pPlacementBytes != NULL) {
+                ASSERT(nSize == sizeof(WINDOWPLACEMENT));
+                if (nSize == sizeof(WINDOWPLACEMENT)) {
+                    memcpy(&wp, pPlacementBytes, nSize);
+                }
+                delete[] pPlacementBytes;
+                wp.showCmd = 1;
+                this->SetWindowPlacement(&wp);
+                if (window_is_offscreen(m_hWnd)) {
+                    orig.showCmd = 1;
+                    SetWindowPlacement(&orig);
+                }
             }
         }
+
+    } else {
     }
+
     return TRUE; // return TRUE  unless you set the focus to a control
 }
 
@@ -1055,17 +1092,22 @@ BOOL CDspAudioHostDlg::restorePlugWindowPosition(const winamp_dsp::Plugin& plug)
     UINT nSize = 0;
     BOOL ret = FALSE;
     LPBYTE pPlacementBytes = NULL;
-    if (theApp.GetProfileBinary(
-            L"PlugWindowPositions", wdesc, &pPlacementBytes, &nSize)) {
-        ASSERT(pPlacementBytes != NULL);
-        if (pPlacementBytes != NULL) {
-            ASSERT(nSize == sizeof(WINDOWPLACEMENT));
-            if (nSize == sizeof(WINDOWPLACEMENT)) {
-                memcpy(&wp, pPlacementBytes, nSize);
+
+    std::string s = GetCommandLineA();
+    if (s.find("safemode") == std::string::npos) {
+
+        if (theApp.GetProfileBinary(
+                L"PlugWindowPositions", wdesc, &pPlacementBytes, &nSize)) {
+            ASSERT(pPlacementBytes != NULL);
+            if (pPlacementBytes != NULL) {
+                ASSERT(nSize == sizeof(WINDOWPLACEMENT));
+                if (nSize == sizeof(WINDOWPLACEMENT)) {
+                    memcpy(&wp, pPlacementBytes, nSize);
+                }
+                delete[] pPlacementBytes;
+                wp.showCmd = 1;
+                ret = ::SetWindowPlacement(hwnd, &wp);
             }
-            delete[] pPlacementBytes;
-            wp.showCmd = 1;
-            ret = ::SetWindowPlacement(hwnd, &wp);
         }
     }
 
@@ -1662,6 +1704,10 @@ void CDspAudioHostDlg::OnBnClickedBtnPlay() {
     strSamplerates += "Output default samplerate = ";
     strSamplerates += std::to_string(samplerates[1]);
 
+    // m_portaudio->m_currentDevices[0].queryDeviceProperties();
+    // m_portaudio->m_currentDevices[1].queryDeviceProperties();
+    // m_portaudio->m_currentDevices[0].testy.add();
+
     try {
         portaudio_cpp::ChannelsType chans; // stereo by default
         auto sr = portaudio_cpp::SampleRateType(m_paSettings.samplerate);
@@ -1685,7 +1731,34 @@ void CDspAudioHostDlg::OnBnClickedBtnPlay() {
             }
         }
     } catch (const std::exception& e) {
-        MessageBox(CStringW(e.what()));
+        const auto code = m_portaudio->errCode();
+        if (code == paInvalidSampleRate) {
+            auto data = m_portaudio->findCommonSamplerate();
+            if (data <= 0) {
+                MessageBox(CStringW(e.what()));
+
+            } else {
+                std::wstringstream ws;
+                ws << L"Information: these two devices do share a common sample rate "
+                      L"of: ";
+                ws << data;
+                ws << L"\n\n Would you like to try that instead?";
+                CString w(ws.str().c_str());
+                auto response = MessageBox(
+                    w, L"Try a different sample rate?", MB_YESNO | MB_ICONINFORMATION);
+                if (response == IDYES) {
+                    std::wstring wsamplerate = std::to_wstring(data);
+                    auto found = cboSampleRate.FindStringExact(0, wsamplerate.c_str());
+                    if (found >= 0) {
+                        cboSampleRate.SetCurSel(found);
+                        OnCbnSelchangeComboSamplerate(); // which calls us again
+                        return;
+                    }
+                }
+            }
+        } else {
+            MessageBox(CStringW(e.what()));
+        }
 //::ShellExecute(*this, L"rundll32.exe", L"shell32.dll,Control_RunDLL
 //: mmsys.cpl,,2",
 //    L"", L"", SW_SHOWNORMAL);

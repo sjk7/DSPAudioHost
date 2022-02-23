@@ -17,6 +17,8 @@
 #include <atomic>
 #include <set>
 #include <cmath>
+#include <unordered_map>
+
 #pragma warning(disable : 26812)
 
 inline void myPaInitCallback(char* info);
@@ -35,6 +37,100 @@ static inline int filter_msvc_exceptions2(
 namespace portaudio_cpp {
 
 static const double TINY = double(0.000000001);
+
+struct SampleFormat {
+
+    SampleFormat(unsigned int fmt) : m_fmt(fmt) {}
+    SampleFormat() : m_fmt(paFloat32) {}
+    SampleFormat(const SampleFormat& rhs) = default;
+    SampleFormat& operator=(const SampleFormat& rhs) = default;
+    SampleFormat(SampleFormat&& rhs) = default;
+    SampleFormat& operator=(SampleFormat&& rhs) = default;
+    ~SampleFormat() = default;
+
+    static constexpr auto Float32 = paFloat32; /**< @see PaSampleFormat */
+    static constexpr auto Int32 = paInt32;
+    static constexpr auto Int24 = paInt24;
+    static constexpr auto Int16 = paInt16;
+    static constexpr auto Int8 = paInt8;
+    static constexpr auto UInt8 = paUInt8;
+    static constexpr auto CustomFormat = paCustomFormat;
+    static constexpr auto NonInterleaved = paNonInterleaved;
+    unsigned int m_fmt = paFloat32;
+
+    std::string to_string() const noexcept {
+        std::string s;
+
+        if (m_fmt & Float32) s = "32-bit float";
+        if (m_fmt & Int32) s = "32-bit integer";
+        if (m_fmt & Int24) s = "24-bit";
+        if (m_fmt & Int16) s = "16-bit integer";
+        if (m_fmt & Int8) s = "signed 8-bit integer";
+        if (m_fmt & UInt8) s = "unsigned 8-bit integer";
+        if (m_fmt & CustomFormat) s += " Custom format";
+        if (m_fmt & NonInterleaved)
+            s += " (non-interleaved)";
+        else
+            s += " (interleaved)";
+        return s;
+    }
+
+    int bits() const noexcept {
+
+        int maskoff = ~NonInterleaved;
+        switch (m_fmt & maskoff) {
+            case Float32: return 32; //-V1037
+            case Int32: return 32;
+            case Int24: return 24;
+            case Int16: return 16;
+            case Int8: return 32;
+            case UInt8: return 8;
+            default: {
+                assert(0);
+                return -1;
+            }
+        }
+    }
+
+    inline friend bool operator<(const SampleFormat& lhs, const SampleFormat& rhs) {
+        return lhs.m_fmt < rhs.m_fmt;
+    }
+    inline friend bool operator==(const SampleFormat& lhs, const SampleFormat& rhs) {
+        return lhs.m_fmt == rhs.m_fmt;
+    }
+};
+
+// add to this collection in your class if you support other samplerates.
+// Remove any samplerates you do not support.
+inline auto allowed_samplerates
+    = std::vector<unsigned int>{22050, 44100, 48000, 96000, 128000, 196000};
+
+// add to this collection in your class if you support other bitdepths.
+// Remove any bitdepths you do not support.
+inline auto allowed_bitdepths
+    = std::vector<SampleFormat>{SampleFormat(SampleFormat::Int32)};
+
+inline PaStreamParameters prepareInputParams(const unsigned int deviceIndex,
+    const SampleFormat& fmt, const PaTime suggestedLatency, const unsigned int nch) {
+    PaStreamParameters ip = {0};
+    ip.channelCount = nch;
+    ip.device = deviceIndex;
+    ip.sampleFormat = fmt.m_fmt;
+
+    ip.suggestedLatency = suggestedLatency;
+    return ip;
+}
+
+inline PaStreamParameters prepareOutputParams(const unsigned int deviceIndex,
+    const SampleFormat& fmt, const PaTime suggestedLatency, const unsigned int nch) {
+    PaStreamParameters ip = {0};
+    ip.channelCount = nch;
+    ip.device = deviceIndex;
+    ip.sampleFormat = fmt.m_fmt;
+    ip.suggestedLatency = suggestedLatency;
+
+    return ip;
+}
 
 // Returns a linear value.
 template <typename T> static inline T db_to_value(T dB) {
@@ -163,10 +259,109 @@ struct timer {
     DWORD m_end = 0;
 };
 
+struct SupportedInfoData {
+    unsigned int samplerate{0};
+    SampleFormat sampleformat{SampleFormat::Float32};
+};
+
+enum DeviceTypes { none = -1, input, output };
+
+struct AudioFormat {
+    bool is_input{false};
+    unsigned int samplerate{0};
+    SampleFormat fmt{SampleFormat::Float32};
+    unsigned int channels{0};
+    bool is_empty() const noexcept { return samplerate > 0; }
+};
+
+static inline std::vector<SampleFormat> test_formats = {SampleFormat::Float32,
+    SampleFormat::Int16, SampleFormat::Int24, SampleFormat::Int8, SampleFormat::UInt8,
+    SampleFormat::Int32, SampleFormat::Int8 | SampleFormat::NonInterleaved,
+    SampleFormat::UInt8 | SampleFormat::NonInterleaved,
+    SampleFormat::Int16 | SampleFormat::NonInterleaved,
+    SampleFormat::Int24 | SampleFormat::NonInterleaved,
+    SampleFormat::Int32 | SampleFormat::NonInterleaved,
+    SampleFormat::Float32 | SampleFormat::NonInterleaved};
+
+using supported_audio_t = std::vector<AudioFormat>;
 struct PaDeviceInfoEx {
     PaDeviceInfo info = {0};
     int index = -1;
     std::string extendedName; // used for the case of name clashes
+
+    supported_audio_t get_supported_audio_types() const noexcept {
+
+        supported_audio_t& ret = supported_audio_types;
+        ret.clear();
+        supported_audio_t tmp;
+        using std::begin, std::end;
+
+        if (info.maxInputChannels > 0) {
+            for (const auto& f : test_formats) {
+                assert(f.m_fmt > 0);
+                tmp = get_supported_input(f, 1);
+                ret.insert(end(ret), begin(tmp), end(tmp));
+            }
+            if (info.maxInputChannels >= 2) {
+                for (const auto& f : test_formats) {
+                    tmp = get_supported_input(f, 2);
+                    ret.insert(end(ret), begin(tmp), end(tmp));
+                }
+            }
+            if (info.maxInputChannels > 2) {
+                for (const auto& f : test_formats) {
+                    tmp = get_supported_input(f, info.maxInputChannels);
+                    ret.insert(end(ret), begin(tmp), end(tmp));
+                }
+            }
+        }
+
+        if (info.maxOutputChannels > 0) {
+            for (const auto& f : test_formats) {
+                tmp = get_supported_output(f, 1);
+                ret.insert(end(ret), begin(tmp), end(tmp));
+            }
+            if (info.maxOutputChannels >= 2) {
+                for (const auto& f : test_formats) {
+                    tmp = get_supported_output(f, 2);
+                    ret.insert(end(ret), begin(tmp), end(tmp));
+                }
+            }
+            if (info.maxOutputChannels > 2) {
+                for (const auto& f : test_formats) {
+                    tmp = get_supported_input(f, info.maxOutputChannels);
+                    ret.insert(end(ret), begin(tmp), end(tmp));
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    private:
+    mutable supported_audio_t supported_audio_types;
+    supported_audio_t get_supported_input(
+        const SampleFormat& sf, const unsigned int nch) const noexcept {
+        supported_audio_t ret;
+        auto ip = prepareInputParams(index, sf, 0, nch);
+        for (const auto& sr : allowed_samplerates) {
+            if (Pa_IsFormatSupported(&ip, nullptr, (double)sr) == paFormatIsSupported) {
+                ret.emplace_back(std::move(AudioFormat{true, sr, sf, nch}));
+            }
+        }
+        return ret;
+    }
+    supported_audio_t get_supported_output(
+        const SampleFormat& sf, const unsigned int nch) const noexcept {
+        supported_audio_t ret;
+        auto op = prepareOutputParams(index, sf, (PaTime)0, nch);
+        for (const auto& sr : allowed_samplerates) {
+            if (Pa_IsFormatSupported(nullptr, &op, (double)sr) == paFormatIsSupported) {
+                ret.emplace_back(std::move(AudioFormat{false, sr, sf, nch}));
+            }
+        }
+        return ret;
+    }
 };
 
 struct notification_interface {
@@ -192,7 +387,7 @@ struct ChannelsType {
         if (m_value[0] == mono) s = "mono";
         return s;
     }
-
+#pragma warning(disable : 4130)
     inline uint8_t operator[](int i) const {
         const auto idx = static_cast<uint8_t>(i);
 
@@ -235,60 +430,6 @@ struct SampleRateType {
 
     std::string to_string() const noexcept { return std::to_string(m_value) + " Hz"; }
 };
-struct SampleFormat {
-
-    SampleFormat(int fmt) : m_fmt(fmt) {}
-    SampleFormat() : m_fmt(paFloat32) {}
-    SampleFormat(const SampleFormat& rhs) = default;
-    SampleFormat& operator=(const SampleFormat& rhs) = default;
-    SampleFormat(SampleFormat&& rhs) = default;
-    SampleFormat& operator=(SampleFormat&& rhs) = default;
-    ~SampleFormat() = default;
-
-    static constexpr auto Float32 = paFloat32; /**< @see PaSampleFormat */
-    static constexpr auto Int32 = paInt32;
-    static constexpr auto Int24 = paInt24;
-    static constexpr auto Int16 = paInt16;
-    static constexpr auto Int8 = paInt8;
-    static constexpr auto UInt8 = paUInt8;
-    static constexpr auto CustomFormat = paCustomFormat;
-    static constexpr auto NonInterleaved = paNonInterleaved;
-    int m_fmt = paFloat32;
-
-    std::string to_string() const noexcept {
-        std::string s;
-
-        if (m_fmt & Float32) s = "32-bit float";
-        if (m_fmt & Int32) s = "32-bit integer";
-        if (m_fmt & Int24) s = "24-bit";
-        if (m_fmt & Int16) s = "16-bit integer";
-        if (m_fmt & Int8) s = "signed 8-bit integer";
-        if (m_fmt & UInt8) s = "unsigned 8-bit integer";
-        if (m_fmt & CustomFormat) s += " Custom format";
-        if (m_fmt & NonInterleaved)
-            s += " (non-interleaved)";
-        else
-            s += " (interleaved)";
-        return s;
-    }
-
-    int bits() const noexcept {
-
-        int maskoff = ~NonInterleaved;
-        switch (m_fmt & maskoff) {
-            case Float32: return 32; //-V1037
-            case Int32: return 32;
-            case Int24: return 24;
-            case Int16: return 16;
-            case Int8: return 32;
-            case UInt8: return 8;
-            default: {
-                assert(0);
-                return -1;
-            }
-        }
-    }
-};
 
 template <typename AUDIOCALLBACK> struct PortAudio {
 
@@ -304,15 +445,6 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     }
 
     public:
-    // add to this collection in your class if you support other samplerates.
-    // Remove any samplerates you do not support.
-    std::vector<int> allowed_samplerates = std::vector<int>{44100};
-
-    // add to this collection in your class if you support other bitdepths.
-    // Remove any bitdepths you do not support.
-    std::vector<SampleFormat> allowed_bitdepths = std::vector<SampleFormat>{
-        SampleFormat(SampleFormat::Int16), SampleFormat(SampleFormat::Int32)};
-
     int errCode() const noexcept { return this->m_errcode; }
 
     PortAudio(AUDIOCALLBACK& acb, notification_interface* pnotify = nullptr)
@@ -381,6 +513,59 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         changeInputChannels,
         changeOutputChannels
     };
+
+    auto getSupportedSampleratesforInput(
+        const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
+        return getSupportedSamplerates(INPUT_DEVICE);
+    }
+    auto getSupportedSampleratesforOutput(
+        const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
+        return getSupportedSamplerates(OUTPUT_DEVICE);
+    }
+
+    auto getSupportedSamplerates(
+        int forInOrOut, const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
+        std::set<unsigned int> ret;
+
+        const auto& fmts = m_currentDevices[forInOrOut].get_supported_audio_types();
+        for (const auto& f : in) {
+            if (f.fmt == fmt) {
+                ret.insert(f.samplerate);
+            }
+        }
+        return ret;
+    }
+
+    // find a common sample rate between the input and output, if possible
+    auto findCommonSamplerate(
+        const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
+        const auto& in = m_currentDevices[0].get_supported_audio_types();
+        const auto& out = m_currentDevices[1].get_supported_audio_types();
+
+        int idx = -1;
+        unsigned common_sr = 0;
+        unsigned int last_result = 0;
+
+        for (const auto& f : in) {
+            if (f.fmt == fmt) {
+                for (const auto& sup : out) {
+                    if (sup.fmt == fmt) {
+                        if (f.samplerate == sup.samplerate
+                            && f.channels == sup.channels) {
+                            const auto fsr = f.samplerate;
+                            if (fsr > last_result) {
+                                common_sr = fsr;
+                                last_result = fsr;
+                            }
+                        }
+                    }
+                    idx++;
+                };
+            }
+        };
+
+        return common_sr;
+    }
 
     // throws
     bool isFormatSupported(
@@ -674,28 +859,6 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         return paContinue;
     }
 
-    PaStreamParameters prepareInputParams() {
-        PaStreamParameters ip = {0};
-        ip.channelCount = 2;
-        ip.device = m_currentDevices[INPUT_DEVICE].index;
-        ip.sampleFormat = paFloat32;
-        ip.suggestedLatency = m_currentDevices[0].info.defaultLowInputLatency;
-        return ip;
-    }
-
-    PaStreamParameters prepareOutParams() {
-        PaStreamParameters ip = {0};
-        ip.channelCount = 2;
-        ip.device = m_currentDevices[OUTPUT_DEVICE].index;
-        ip.sampleFormat = paFloat32;
-        ip.suggestedLatency = m_currentDevices[0].info.defaultLowOutputLatency;
-
-        if (std::string_view(m_currentApi.name) == "WASAPI") {
-            assert(0);
-        }
-        return ip;
-    }
-
     PaStreamFlags prepareFlags() {
         PaStreamFlags flags = {0};
         return flags;
@@ -712,11 +875,13 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         const bool super_low_latency = true) {
         if (m_stream) this->Close();
         PaStreamParameters& ip = m_inputParams;
-        ip = prepareInputParams();
+        ip = prepareInputParams(this->m_currentDevices[0].index, SampleFormat::Float32,
+            m_currentDevices[0].info.defaultLowInputLatency, channels[INPUT_DEVICE]);
         ip.channelCount = channels[0];
 
         PaStreamParameters& op = m_outputParams;
-        op = prepareOutParams();
+        op = prepareOutputParams(this->m_currentDevices[1].index, SampleFormat::Float32,
+            m_currentDevices[1].info.defaultLowOutputLatency, channels[OUTPUT_DEVICE]);
         op.channelCount = channels[1];
         PaStreamFlags flags = prepareFlags();
 
@@ -817,6 +982,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     PaHostApiInfo m_currentApi = {0};
 
     std::array<PaDeviceInfoEx, 2> m_currentDevices;
+
+    PaDeviceInfoEx m_d;
     static inline constexpr int INPUT_DEVICE = 0;
     static inline constexpr int OUTPUT_DEVICE = 1;
 
@@ -837,10 +1004,11 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     }
 
     const device_list& devices() const noexcept { return m_devices; }
+    device_list& devices() { return m_devices; }
     const api_list& apis() const noexcept { return m_apis; }
 
-    const PaDeviceInfoEx* findDevice(std::string_view name) const noexcept {
-        for (const auto& d : this->devices()) {
+    PaDeviceInfoEx* findDevice(std::string_view name) noexcept {
+        for (auto&& d : this->m_devices) {
             std::string_view n1(d.extendedName);
             if (n1 == name) {
                 return &d;
@@ -849,8 +1017,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         assert(0);
         return nullptr;
     }
-    const PaDeviceInfoEx* findDevice(unsigned int index) const noexcept {
-        for (const auto& d : this->devices()) {
+    PaDeviceInfoEx* findDevice(unsigned int index) noexcept {
+        for (auto&& d : m_devices) {
             if (d.index == (int)index) return &d;
         }
         return nullptr;
@@ -915,7 +1083,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             err += "\nSet failsafe defaults, and try again.";
             throw std::runtime_error(err);
         }
-        const PaDeviceInfoEx* p = findDevice(deviceIndex);
+        PaDeviceInfoEx* p = findDevice(deviceIndex);
         if (!p) {
             assert(0);
             throw std::runtime_error("Unexpected: changeDevice cannot find device");
@@ -974,13 +1142,11 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     private:
     int m_errcode = 0;
     int init() {
-
         m_errcode = 0;
         m_errcode = Pa_InitializeEx(myPaInitCallback);
         if (m_errcode) {
             throw std::runtime_error("Failed to init PortAudio");
         }
-        memset(&m_currentDevices, 0, sizeof(PaDeviceInfo) * 2);
 
         if (m_errcode) return m_errcode;
         m_apis = enumApis();
@@ -1001,15 +1167,14 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             throw std::runtime_error(
                 "PortAudio: fatal : cannot get default audio api for this machine.");
         }
-        // whether you want to or not, if you are re-initting, the api gets changed to the
-        // default as otherwise the program is in an undefined state, pointing to stack
-        // memory that no longer exists inside portAudio.
+        // whether you want to or not, if you are re-initting, the api gets changed to
+        // the default as otherwise the program is in an undefined state, pointing to
+        // stack memory that no longer exists inside portAudio.
         changeApi(api_index);
         return retval;
     }
 
     void setDefaultDevices() {
-
         auto dev = m_currentApi.defaultInputDevice;
 
         if (!dev) {

@@ -59,7 +59,7 @@ class CMFCVisualManagerWindows10 : public CMFCVisualManagerWindows7 {
         CDC* pDC, CMFCRibbonGallery* pButton, CRect rectBorder){}; // 不绘出功能区右下方的阴影
     virtual COLORREF OnDrawRibbonTabsFrame(
         CDC* pDC, CMFCRibbonBar* pWndRibbonBar, CRect rectTab) {
-        return -1;
+        return (COLORREF)-1;
     }; // 不绘出快速访问工具栏下方的横线
 
     protected:

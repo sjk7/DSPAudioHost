@@ -271,8 +271,8 @@ void CMFCVisualManagerWindows10::OnDrawTab(
     rectTab.top -= 2;
 
     // ?? TAB ?????? TAB ???????
-    OnFillTab(
-        pDC, rectTab, &CBrush(pTabWnd->GetTabBkColor(iTab)), iTab, bIsActive, pTabWnd);
+    auto br = CBrush(pTabWnd->GetTabBkColor(iTab));
+    OnFillTab(pDC, rectTab, &br, iTab, bIsActive, pTabWnd);
 
     // ?? TAB ??
     CPen pen(PS_SOLID, 1, ::afxGlobalData.clrBarShadow);
