@@ -211,7 +211,6 @@ static PaError InitializeHostApis(void) {
         result = paHostApiInitializers[i](&hostApis_[hostApisCount_], hostApisCount_);
         if (result != paNoError) goto error;
 
-
         PA_DEBUG(("after paHostApiInitializers[%d].\n", i));
 
         if (hostApis_[hostApisCount_]) {
@@ -387,7 +386,8 @@ const char* Pa_GetErrorText(PaError errorCode) {
         case paInvalidFlag: result = "Invalid flag"; break;
         case paSampleFormatNotSupported: result = "Sample format not supported"; break;
         case paBadIODeviceCombination:
-            result = "Illegal combination of I/O devices";
+            result = "Illegal combination of I/O devices. ASIO mandates the use of the "
+                     "same audio device for in and out";
             break;
         case paInsufficientMemory: result = "Insufficient memory"; break;
         case paBufferTooBig: result = "Buffer too big"; break;

@@ -345,7 +345,9 @@ static inline std::vector<SampleFormat> test_formats = {SampleFormat::Float32,
 
 using supported_audio_t = std::vector<AudioFormat>;
 struct PaDeviceInfoEx {
+
     PaDeviceInfo info = {0};
+    DeviceTypes m_type{DeviceTypes::none};
     int index = -1;
     std::string extendedName; // used for the case of name clashes
 
@@ -372,6 +374,7 @@ struct PaDeviceInfoEx {
         return s;
     }
 
+#pragma warning(disable : 4130)
     PaError isFormatSupported(const AudioFormat& fmt) const noexcept {
         if (fmt.forInOrOut == DeviceTypes::input) {
             if (info.maxInputChannels == 0) {
@@ -397,29 +400,35 @@ struct PaDeviceInfoEx {
         supported_audio_t tmp;
         using std::begin, std::end;
 
-        if (info.maxInputChannels > 0) {
-            for (const auto& f : test_formats) {
-                assert(f.m_fmt > 0);
-                tmp = get_supported_input(f, ChannelsType::mono);
-                ret.insert(end(ret), begin(tmp), end(tmp));
-            }
-            if (info.maxInputChannels >= 2) {
+        assert(m_type != DeviceTypes::none);
+
+        if (this->m_type == DeviceTypes::input) {
+            if (info.maxInputChannels > 0) {
                 for (const auto& f : test_formats) {
-                    tmp = get_supported_input(f, ChannelsType::stereo);
+                    assert(f.m_fmt > 0);
+                    tmp = get_supported_input(f, ChannelsType::mono);
                     ret.insert(end(ret), begin(tmp), end(tmp));
+                }
+                if (info.maxInputChannels >= 2) {
+                    for (const auto& f : test_formats) {
+                        tmp = get_supported_input(f, ChannelsType::stereo);
+                        ret.insert(end(ret), begin(tmp), end(tmp));
+                    }
                 }
             }
         }
 
-        if (info.maxOutputChannels > 0) {
-            for (const auto& f : test_formats) {
-                tmp = get_supported_output(f, ChannelsType::mono);
-                ret.insert(end(ret), begin(tmp), end(tmp));
-            }
-            if (info.maxOutputChannels >= 2) {
+        if (this->m_type == DeviceTypes::output) {
+            if (info.maxOutputChannels > 0) {
                 for (const auto& f : test_formats) {
-                    tmp = get_supported_output(f, ChannelsType::stereo);
+                    tmp = get_supported_output(f, ChannelsType::mono);
                     ret.insert(end(ret), begin(tmp), end(tmp));
+                }
+                if (info.maxOutputChannels >= 2) {
+                    for (const auto& f : test_formats) {
+                        tmp = get_supported_output(f, ChannelsType::stereo);
+                        ret.insert(end(ret), begin(tmp), end(tmp));
+                    }
                 }
             }
         }
@@ -917,8 +926,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         PaStreamFlags flags = prepareFlags();
 
         if (super_low_latency) {
-            ip.suggestedLatency = ip.suggestedLatency / 2;
-            op.suggestedLatency = op.suggestedLatency / 2;
+            ip.suggestedLatency = ip.suggestedLatency;
+            op.suggestedLatency = op.suggestedLatency;
         }
         m_sampleRate = samplerate;
 
@@ -929,7 +938,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
 
         if (m_errcode != paNoError) {
             errInfo = Pa_GetErrorText(m_errcode);
-            errInfo += "\n";
+            errInfo += "\n\n";
+            errInfo += "Additional info:\n";
             errInfo += Pa_GetLastHostErrorInfo()->errorText;
             throw std::runtime_error(errInfo);
         }
@@ -1121,6 +1131,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         }
 
         m_currentDevices[static_cast<int>(inOrOut)] = *p;
+        m_currentDevices[static_cast<int>(inOrOut)].m_type = inOrOut;
 
         assert(!m_currentDevices[static_cast<int>(inOrOut)].extendedName.empty());
         if (inOrOut == DeviceTypes::input) {

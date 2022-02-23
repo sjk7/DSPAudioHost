@@ -1360,8 +1360,8 @@ static PaError IsFormatSupported(struct PaUtilHostApiRepresentation* hostApi,
     if (inputParameters && outputParameters) {
         /* full duplex ASIO stream must use the same device for input and output */
 
-        if (inputParameters->device != outputParameters->device)
-            return paBadIODeviceCombination;
+        // if (inputParameters->device != outputParameters->device)
+        //     return paBadIODeviceCombination;
     }
 
     if (inputParameters) {
