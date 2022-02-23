@@ -173,6 +173,9 @@ void CDspAudioHostDlg::paSettingsLoad() {
             m_paSettings = std::move(PASettings(false));
             m_paSettings.saveAll();
             m_portaudio->failsafeDefaults();
+            showSamplerate();
+            myShowCurrentDevice(portaudio_cpp::DeviceTypes::input);
+            myShowCurrentDevice(portaudio_cpp::DeviceTypes::output);
         }
     }
 
@@ -453,7 +456,7 @@ void CDspAudioHostDlg::mypopApis() {
         default_api_name = tmp;
         m_portaudio->changeApi(api);
     }
-    int idx = cboAPI.FindString(0, default_api_name);
+    int idx = cboAPI.FindStringExact(0, default_api_name);
     assert(idx >= 0 && idx < cboAPI.GetCount());
     cboAPI.SetCurSel(idx);
 }
@@ -496,7 +499,7 @@ void CDspAudioHostDlg::myShowCurrentDevice(const portaudio_cpp::DeviceTypes forI
     } else {
         pcbo = &this->cboInput;
     }
-    auto idx = pcbo->FindString(0, inName);
+    auto idx = pcbo->FindStringExact(0, inName);
     const auto how_many = pcbo->GetCount();
     assert(idx >= 0 && idx < how_many);
     pcbo->SetCurSel(idx);
@@ -623,7 +626,7 @@ void CDspAudioHostDlg::mypopDevices(const portaudio_cpp::DeviceTypes forInOrOut)
 
 void CDspAudioHostDlg::onApiChanged(const PaHostApiInfo& newApi) noexcept {
     CString apiName(newApi.name);
-    int i = cboAPI.FindString(0, apiName);
+    int i = cboAPI.FindStringExact(0, apiName);
     assert(i >= 0 && i < cboAPI.GetCount());
     cboAPI.SetCurSel(i);
     this->mypopAllDevices();
@@ -911,8 +914,85 @@ HCURSOR CDspAudioHostDlg::OnQueryDragIcon() {
     return static_cast<HCURSOR>(m_hIcon);
 }
 
+int findTextInCombo(CString findWhat, CComboBox& cb) {
+    std::wstring_view vold = findWhat.GetBuffer();
+    std::wstring_view vnow;
+
+    for (int x = 0; x < cb.GetCount(); ++x) {
+        CString ws;
+        cb.GetLBText(x, ws);
+        vnow = ws.GetBuffer();
+        if (vnow.length() < vold.length()) {
+            if (vold.find(vnow) != std::string::npos) {
+                return x;
+            }
+        }
+    }
+    return -1;
+}
+
 void CDspAudioHostDlg::OnSelchangeComboApi() {
+
+    CStringW old_input;
+    CStringW old_output;
+    PortAudioGlobalIndex old_ip_index;
+    PortAudioGlobalIndex old_op_index;
+    portaudio_cpp::AudioFormat old_format;
+    bool was_running = m_portaudio->m_running;
+    int found = 0;
+
+    if (m_portaudio) {
+        const auto& ip = m_portaudio->currentDevice(DeviceTypes::input);
+        const auto& op = m_portaudio->currentDevice(DeviceTypes::output);
+        old_input = ip.extendedName.c_str();
+        old_output = op.extendedName.c_str();
+        old_format = m_portaudio->currentFormats(DeviceTypes::input);
+        old_ip_index = ip.globalIndex;
+        old_op_index = op.globalIndex;
+    }
     this->myChangeAPI(L"");
+
+    if (m_portaudio) {
+
+        auto i = cboInput.FindStringExact(0, old_input);
+        if (i < 0) {
+            i = cboInput.FindString(0, old_input);
+        }
+        if (i < 0) {
+            i = findTextInCombo(old_input, cboInput);
+        }
+        if (i >= 0) {
+            ++found;
+            cboInput.SetCurSel(i);
+            OnSelchangeComboInput();
+        }
+
+        i = cboOutput.FindStringExact(0, old_output);
+        if (i < 0) {
+            i = cboOutput.FindString(0, old_output);
+        }
+        if (i < 0) {
+            i = findTextInCombo(old_output, cboOutput);
+        }
+        if (i >= 0) {
+            ++found;
+            cboOutput.SetCurSel(i);
+            OnCbnSelchangeComboOutput();
+        }
+
+        if (was_running && found == 2) {
+            try {
+                if (!old_format.is_empty() && myPreparePlay(old_format)) {
+                    myPreparePortAudio(old_format.channels, old_format.samplerate);
+                    this->portaudioStart();
+                }
+            } catch (const std::exception& e) { //-V565
+                ::MessageBoxA(m_hWnd, e.what(),
+                    "Audio failed to automatically restart after api change",
+                    MB_OK | MB_ICONSTOP);
+            }
+        }
+    }
 }
 
 void CDspAudioHostDlg::OnBnClickedRefreshPA() {
@@ -1030,8 +1110,8 @@ void CDspAudioHostDlg::showSamplerate() {
         cboSampleRate.AddString(L"22050");
     }
 
-    auto thing
-        = cboSampleRate.FindString(0, std::to_wstring(m_paSettings.samplerate).data());
+    auto thing = cboSampleRate.FindStringExact(
+        0, std::to_wstring(m_paSettings.samplerate).data());
     assert(thing >= 0);
     cboSampleRate.SetCurSel(thing);
 }
