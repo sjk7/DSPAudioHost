@@ -132,7 +132,7 @@ void CDspAudioHostDlg::paSettingsLoad() {
                 e += m_paSettings.input().data();
                 throw std::runtime_error(e);
             }
-            m_portaudio->changeDevice(input->index, 0);
+            m_portaudio->changeDevice(input->index, portaudio_cpp::DeviceTypes::input);
         }
 
         what = "Restoring API: ";
@@ -144,7 +144,7 @@ void CDspAudioHostDlg::paSettingsLoad() {
                 e += m_paSettings.output().data();
                 throw std::runtime_error(e);
             }
-            m_portaudio->changeDevice(output->index, 1);
+            m_portaudio->changeDevice(output->index, portaudio_cpp::DeviceTypes::output);
         }
 
         what = "Restoring sample rate: ";
@@ -378,10 +378,11 @@ void CDspAudioHostDlg::afterCreatePortAudio() {
         doEvents();
     }
     mypopApis();
-    mypopDevices(portaudio_cpp::PortAudio<CDspAudioHostDlg>::INPUT_DEVICE);
-    mypopDevices(portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE);
-    myShowCurrentDevice(portaudio_cpp::PortAudio<CDspAudioHostDlg>::INPUT_DEVICE);
-    myShowCurrentDevice(portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE);
+    using namespace portaudio_cpp;
+    mypopDevices(DeviceTypes::input);
+    mypopDevices(DeviceTypes::output);
+    myShowCurrentDevice(DeviceTypes::input);
+    myShowCurrentDevice(DeviceTypes::output);
 
     // note: notifications not enabled until AFTER initial setup
     m_portaudio->notification_add(this);
@@ -457,14 +458,14 @@ void CDspAudioHostDlg::mypopApis() {
     cboAPI.SetCurSel(idx);
 }
 
-void myFillDevices(int forInOrOut,
+void myFillDevices(const portaudio_cpp::DeviceTypes forInOrOut,
     const portaudio_cpp::PortAudio<CDspAudioHostDlg>::device_list& devices,
     CComboBox* pcbo) {
 
     pcbo->Clear();
     pcbo->ResetContent();
     for (const auto& d : devices) {
-        if (forInOrOut == portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE) {
+        if (forInOrOut == portaudio_cpp::DeviceTypes::output) {
             if (d.info.maxOutputChannels > 0) {
                 const CString name(d.extendedName.data());
                 pcbo->AddString(name);
@@ -478,31 +479,19 @@ void myFillDevices(int forInOrOut,
     }
 }
 
-void CDspAudioHostDlg::myShowCurrentDevice(int forInOrOut) {
-    const auto& cur = m_portaudio->m_currentDevices[forInOrOut];
+void CDspAudioHostDlg::myShowCurrentDevice(const portaudio_cpp::DeviceTypes forInOrOut) {
+    const auto& cur = m_portaudio->currentDevice(forInOrOut);
     const CString inName(cur.extendedName.data());
 
-    const auto& types
-        = m_portaudio->m_currentDevices[forInOrOut].get_supported_audio_types();
-    std::string s("Device ");
-    s += m_portaudio->m_currentDevices[forInOrOut].extendedName;
-    s += " supports the following:\n";
-    for (const auto& t : types) {
-
-        s += "Channels: ";
-        s += std::to_string(t.channels);
-        s += "\nBitdepth:";
-        s += t.fmt.to_string();
-        s += "\nAt Samplerate: ";
-        s += std::to_string(t.samplerate);
-        s += "\n\n";
-    }
+    /*/
+    const auto& types = cur.get_supported_audio_types();
+    auto s = cur.to_string(types);
     CString ws(s.c_str());
     const auto ffs = ws.GetLength();
     TRACE(L"ffs\n%s\n", ws.GetBuffer());
-
+    /*/
     auto* pcbo = &this->cboInput;
-    if (forInOrOut == portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE) {
+    if (forInOrOut == portaudio_cpp::DeviceTypes::output) {
         pcbo = &this->cboOutput;
     } else {
         pcbo = &this->cboInput;
@@ -521,7 +510,7 @@ int CDspAudioHostDlg::myPreparePortAudio(const portaudio_cpp::ChannelsType& chan
         s += e.what();
         MessageBoxA(
             this->GetSafeHwnd(), s.data(), "Fatal PortAudio Error", MB_OK | MB_ICONSTOP);
-        return -1;
+        throw;
     }
 }
 void CDspAudioHostDlg::showPaProgress(const char* what) {
@@ -620,11 +609,11 @@ void CDspAudioHostDlg::setUpButtons() {
     btnStop.EnableWindow(FALSE);
 }
 
-void CDspAudioHostDlg::mypopDevices(const int forInOrOut) {
+void CDspAudioHostDlg::mypopDevices(const portaudio_cpp::DeviceTypes forInOrOut) {
 
     // const auto& device = m_portaudio->m_currentDevices[forInOrOut];
     auto* pcbo = &this->cboInput;
-    if (forInOrOut == portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE) {
+    if (forInOrOut == portaudio_cpp::DeviceTypes::output) {
         pcbo = &this->cboOutput;
     } else {
         pcbo = &this->cboInput;
@@ -646,13 +635,13 @@ void CDspAudioHostDlg::onApiChanged(const PaHostApiInfo& newApi) noexcept {
 using namespace portaudio_cpp;
 void CDspAudioHostDlg::onInputDeviceChanged(
     const PaDeviceInfoEx& newInputDevice) noexcept {
-    myShowCurrentDevice(portaudio_cpp::PortAudio<CDspAudioHostDlg>::INPUT_DEVICE);
+    myShowCurrentDevice(portaudio_cpp::DeviceTypes::input);
     if (!m_loadingPaSettings) saveInput();
 }
 
 void CDspAudioHostDlg::onOutputDeviceChanged(
     const PaDeviceInfoEx& newOutputDevice) noexcept {
-    myShowCurrentDevice(portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE);
+    myShowCurrentDevice(portaudio_cpp::DeviceTypes::output);
     if (!m_loadingPaSettings) saveOutput();
 }
 
@@ -663,16 +652,16 @@ void CDspAudioHostDlg::onStreamStopped(const PaStreamInfo& streamInfo) noexcept 
 void CDspAudioHostDlg::onStreamAbort(const PaStreamInfo& streamInfo) noexcept {}
 
 void CDspAudioHostDlg::mypopInputDevices() {
-    mypopDevices(portaudio_cpp::PortAudio<CDspAudioHostDlg>::INPUT_DEVICE);
+    mypopDevices(portaudio_cpp::DeviceTypes::input);
 }
 
 void CDspAudioHostDlg::mypopOutputDevices() {
-    mypopDevices(portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE);
+    mypopDevices(portaudio_cpp::DeviceTypes::output);
 }
 
 void CDspAudioHostDlg::mypopAllDevices() {
-    mypopDevices(portaudio_cpp::PortAudio<CDspAudioHostDlg>::INPUT_DEVICE);
-    mypopDevices(portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE);
+    mypopDevices(portaudio_cpp::DeviceTypes::input);
+    mypopDevices(portaudio_cpp::DeviceTypes::output);
 }
 
 void CDspAudioHostDlg::myChangeAPI(CString apiName) {
@@ -687,8 +676,8 @@ void CDspAudioHostDlg::myChangeAPI(CString apiName) {
         m_portaudio->changeApi(ptr);
         if (!m_portaudio->subscribedForNotifications(this)) {
             mypopAllDevices();
-            myShowCurrentDevice(0);
-            myShowCurrentDevice(1);
+            myShowCurrentDevice(portaudio_cpp::DeviceTypes::input);
+            myShowCurrentDevice(portaudio_cpp::DeviceTypes::output);
         } // otherwise UI is populated from notifications
     } else {
         CString msg = L"Unable to find api, with name: ";
@@ -976,8 +965,7 @@ void CDspAudioHostDlg::OnSelchangeComboInput() {
         msg += name;
         MessageBox(msg, L"Error: Cannot find input device");
     } else {
-        m_portaudio->changeDevice(
-            *dev, portaudio_cpp::PortAudio<CDspAudioHostDlg>::INPUT_DEVICE);
+        m_portaudio->changeDevice(*dev, portaudio_cpp::DeviceTypes::input);
     }
 }
 
@@ -992,8 +980,7 @@ void CDspAudioHostDlg::OnCbnSelchangeComboOutput() {
         msg += name;
         MessageBox(msg, L"Error: Cannot find output device");
     } else {
-        m_portaudio->changeDevice(
-            *dev, portaudio_cpp::PortAudio<CDspAudioHostDlg>::OUTPUT_DEVICE);
+        m_portaudio->changeDevice(*dev, portaudio_cpp::DeviceTypes::output);
     }
 }
 
@@ -1689,6 +1676,61 @@ void CDspAudioHostDlg::OnTimer(UINT_PTR nIDEvent) {
     busy = false;
 }
 
+bool CDspAudioHostDlg::myPreparePlay(portaudio_cpp::AudioFormat& fmt) {
+
+    bool retval = true;
+    auto myfmt = fmt;
+    myfmt.forInOrOut = DeviceTypes::input;
+    auto errcode = m_portaudio->isFormatSupported(myfmt);
+    if (errcode != paFormatIsSupported) {
+        std::string serr(Pa_GetErrorText(errcode));
+        serr += "\n";
+        serr += Pa_GetLastHostErrorInfo()->errorText;
+        MessageBox(L"The input device does not support the requested input audio format",
+            L"Bad input device Parameters");
+        retval = false;
+    }
+
+    if (retval) {
+        myfmt.forInOrOut = DeviceTypes::output;
+        errcode = m_portaudio->isFormatSupported(myfmt);
+
+        if (errcode == paInvalidChannelCount) {
+            myfmt.channels = portaudio_cpp::ChannelsType::mono;
+
+            errcode = m_portaudio->isFormatSupported(myfmt);
+        }
+        if (errcode) {
+            std::string serr = Pa_GetErrorText(errcode);
+            serr += "\n";
+            serr += Pa_GetLastHostErrorInfo()->errorText;
+            serr += "\n";
+        }
+
+        if (errcode != paFormatIsSupported) {
+            MessageBox(
+                L"The output device does not support the requested output audio format",
+                L"Bad output device Parameters");
+
+            retval = false;
+        }
+    }
+
+    /*/
+    if (1) {
+        const auto& d = m_portaudio->currentDevice(portaudio_cpp::DeviceTypes::output);
+        const auto& id = m_portaudio->currentDevice(portaudio_cpp::DeviceTypes::input);
+        const auto& sup_out = d.get_supported_audio_types();
+        const auto& sup_in = id.get_supported_audio_types();
+        const auto rates_out = d.getSupportedSamplerates();
+        const auto rates_in = id.getSupportedSamplerates();
+        TRACE("ffs");
+    }
+    /*/
+
+    return retval;
+}
+
 void CDspAudioHostDlg::OnBnClickedBtnPlay() {
 
     if (!m_portaudio) return;
@@ -1704,16 +1746,20 @@ void CDspAudioHostDlg::OnBnClickedBtnPlay() {
     strSamplerates += "Output default samplerate = ";
     strSamplerates += std::to_string(samplerates[1]);
 
-    // m_portaudio->m_currentDevices[0].queryDeviceProperties();
-    // m_portaudio->m_currentDevices[1].queryDeviceProperties();
-    // m_portaudio->m_currentDevices[0].testy.add();
-
     try {
         portaudio_cpp::ChannelsType chans; // stereo by default
         auto sr = portaudio_cpp::SampleRateType(m_paSettings.samplerate);
 
-        int bd = 32;
-        if (m_portaudio->isFormatSupported(chans, sr, bd)) {
+        auto myfmt = portaudio_cpp::AudioFormat::makeAudioFormat(
+            portaudio_cpp::DeviceTypes::input, SampleFormat::Float32, sr, chans);
+
+        // if (!myPreparePlay(myfmt)) {
+        //     return;
+        // }
+        //  do this even if errors detected, so that we might find a common samplerate
+        myPreparePlay(myfmt);
+
+        if (1) {
             if (myPreparePortAudio(chans, sr) == NOERROR) {
                 portaudioStart();
                 std::string sTime;
@@ -1732,7 +1778,7 @@ void CDspAudioHostDlg::OnBnClickedBtnPlay() {
         }
     } catch (const std::exception& e) {
         const auto code = m_portaudio->errCode();
-        if (code == paInvalidSampleRate) {
+        if (code == paInvalidSampleRate || code == paSampleFormatNotSupported) {
             auto data = m_portaudio->findCommonSamplerate();
             if (data <= 0) {
                 MessageBox(CStringW(e.what()));

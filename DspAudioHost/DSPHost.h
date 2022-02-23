@@ -490,6 +490,7 @@ struct Host {
         return m_activePlugins.at(m_activePlugins.size() - 1);
     }
 
+#pragma warning(disable : 4130)
     Plugin* findActivatedPlug(const unsigned int index) {
         if (index >= m_activePlugins.size()) {
             assert("findActivatedPlug: index out of bounds" == nullptr); //-V547

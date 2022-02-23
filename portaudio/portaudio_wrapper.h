@@ -109,11 +109,27 @@ inline auto allowed_samplerates
 // Remove any bitdepths you do not support.
 inline auto allowed_bitdepths
     = std::vector<SampleFormat>{SampleFormat(SampleFormat::Int32)};
+enum class DeviceTypes { none = -1, input, output };
+
+struct ChannelsType {
+    enum MonoStereo { mono = 1, stereo = 2 };
+    unsigned int m_value = MonoStereo::stereo;
+    std::string to_string() const noexcept {
+        std::string s("stereo");
+        if (m_value == MonoStereo::mono) s = "mono";
+        return s;
+    }
+    ChannelsType(MonoStereo ms) : m_value(ms) {}
+    ChannelsType() = default;
+    inline bool operator==(const ChannelsType& rhs) const noexcept {
+        return m_value == rhs.m_value;
+    }
+};
 
 inline PaStreamParameters prepareInputParams(const unsigned int deviceIndex,
-    const SampleFormat& fmt, const PaTime suggestedLatency, const unsigned int nch) {
+    const SampleFormat& fmt, const PaTime suggestedLatency, const ChannelsType& nch) {
     PaStreamParameters ip = {0};
-    ip.channelCount = nch;
+    ip.channelCount = nch.m_value;
     ip.device = deviceIndex;
     ip.sampleFormat = fmt.m_fmt;
 
@@ -122,9 +138,9 @@ inline PaStreamParameters prepareInputParams(const unsigned int deviceIndex,
 }
 
 inline PaStreamParameters prepareOutputParams(const unsigned int deviceIndex,
-    const SampleFormat& fmt, const PaTime suggestedLatency, const unsigned int nch) {
+    const SampleFormat& fmt, const PaTime suggestedLatency, const ChannelsType& nch) {
     PaStreamParameters ip = {0};
-    ip.channelCount = nch;
+    ip.channelCount = nch.m_value;
     ip.device = deviceIndex;
     ip.sampleFormat = fmt.m_fmt;
     ip.suggestedLatency = suggestedLatency;
@@ -259,19 +275,63 @@ struct timer {
     DWORD m_end = 0;
 };
 
-struct SupportedInfoData {
-    unsigned int samplerate{0};
-    SampleFormat sampleformat{SampleFormat::Float32};
+struct SampleRateType {
+
+    static constexpr unsigned int defaultSampleRate = 44100;
+    unsigned int m_value = defaultSampleRate;
+    SampleRateType(unsigned int val) : m_value(val) {}
+    SampleRateType(const SampleRateType& rhs) = default;
+    SampleRateType& operator=(const SampleRateType& rhs) = default;
+    SampleRateType(SampleRateType&& rhs) = default;
+    SampleRateType& operator=(SampleRateType&& rhs) = default;
+    SampleRateType() : m_value(defaultSampleRate){};
+    inline bool operator==(const SampleRateType& rhs) const noexcept {
+        return m_value == rhs.m_value;
+    }
+    inline bool operator!=(const SampleRateType& rhs) const noexcept {
+        return !(*this == rhs);
+    }
+    inline bool operator==(unsigned int to_what) const noexcept {
+        return to_what == m_value;
+    }
+    inline bool operator<(unsigned int to_what) const noexcept {
+        return m_value < to_what;
+    }
+    inline friend bool operator<(
+        const SampleRateType& lhs, const SampleRateType& rhs) noexcept {
+        return lhs.m_value < rhs.m_value;
+    }
+    inline bool operator>(unsigned int to_what) const noexcept {
+        return m_value > to_what;
+    }
+
+    std::string to_string() const noexcept { return std::to_string(m_value) + " Hz"; }
 };
 
-enum DeviceTypes { none = -1, input, output };
-
 struct AudioFormat {
-    bool is_input{false};
-    unsigned int samplerate{0};
-    SampleFormat fmt{SampleFormat::Float32};
-    unsigned int channels{0};
+    DeviceTypes forInOrOut{DeviceTypes::input};
+    SampleRateType samplerate{0};
+    SampleFormat samplefmt{SampleFormat::Float32};
+    ChannelsType channels;
+
+    static AudioFormat makeAudioFormat(const DeviceTypes& forInOrOut,
+        const SampleFormat& sf, const SampleRateType& sr,
+        const ChannelsType chans = ChannelsType::stereo) {
+        AudioFormat ret{forInOrOut, sr, sf, chans};
+        return ret;
+    }
+
     bool is_empty() const noexcept { return samplerate > 0; }
+    inline std::string to_string() const noexcept {
+        std::string s("Channels: ");
+        s += channels.to_string();
+        s += "\nBitdepth:";
+        s += samplefmt.to_string();
+        s += "\nAt Samplerate: ";
+        s += std::to_string(samplerate.m_value);
+        s += "\n\n";
+        return s;
+    }
 };
 
 static inline std::vector<SampleFormat> test_formats = {SampleFormat::Float32,
@@ -289,8 +349,49 @@ struct PaDeviceInfoEx {
     int index = -1;
     std::string extendedName; // used for the case of name clashes
 
-    supported_audio_t get_supported_audio_types() const noexcept {
+    std::set<SampleRateType> getSupportedSamplerates(
+        const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
+        std::set<SampleRateType> ret;
 
+        const auto& fmts = get_supported_audio_types();
+        for (const auto& f : fmts) {
+            if (f.samplefmt == fmt) {
+                ret.insert(f.samplerate);
+            }
+        }
+        return ret;
+    }
+
+    inline std::string to_string(const std::vector<AudioFormat>& fmts) const {
+        std::string s("Device ");
+        s += extendedName;
+        s += " supports the following:\n";
+        for (const auto& t : fmts) {
+            s += t.to_string();
+        }
+        return s;
+    }
+
+    PaError isFormatSupported(const AudioFormat& fmt) const noexcept {
+        if (fmt.forInOrOut == DeviceTypes::input) {
+            if (info.maxInputChannels == 0) {
+                assert("Querying an output device for INPUT formats? WTF!" == nullptr);
+            }
+        } else {
+            if (info.maxOutputChannels == 0) {
+                assert("Querying an input device for OUTPUT formats? WTF!" == nullptr);
+            }
+        }
+        if (fmt.forInOrOut == DeviceTypes::input) {
+            auto ip = prepareInputParams(index, fmt.samplefmt, 0, fmt.channels);
+            return Pa_IsFormatSupported(&ip, nullptr, fmt.samplerate.m_value);
+        } else {
+            auto op = prepareOutputParams(index, fmt.samplefmt, 0, fmt.channels);
+            return Pa_IsFormatSupported(nullptr, &op, fmt.samplerate.m_value);
+        }
+    }
+
+    supported_audio_t get_supported_audio_types() const noexcept {
         supported_audio_t& ret = supported_audio_types;
         ret.clear();
         supported_audio_t tmp;
@@ -299,18 +400,12 @@ struct PaDeviceInfoEx {
         if (info.maxInputChannels > 0) {
             for (const auto& f : test_formats) {
                 assert(f.m_fmt > 0);
-                tmp = get_supported_input(f, 1);
+                tmp = get_supported_input(f, ChannelsType::mono);
                 ret.insert(end(ret), begin(tmp), end(tmp));
             }
             if (info.maxInputChannels >= 2) {
                 for (const auto& f : test_formats) {
-                    tmp = get_supported_input(f, 2);
-                    ret.insert(end(ret), begin(tmp), end(tmp));
-                }
-            }
-            if (info.maxInputChannels > 2) {
-                for (const auto& f : test_formats) {
-                    tmp = get_supported_input(f, info.maxInputChannels);
+                    tmp = get_supported_input(f, ChannelsType::stereo);
                     ret.insert(end(ret), begin(tmp), end(tmp));
                 }
             }
@@ -318,18 +413,12 @@ struct PaDeviceInfoEx {
 
         if (info.maxOutputChannels > 0) {
             for (const auto& f : test_formats) {
-                tmp = get_supported_output(f, 1);
+                tmp = get_supported_output(f, ChannelsType::mono);
                 ret.insert(end(ret), begin(tmp), end(tmp));
             }
             if (info.maxOutputChannels >= 2) {
                 for (const auto& f : test_formats) {
-                    tmp = get_supported_output(f, 2);
-                    ret.insert(end(ret), begin(tmp), end(tmp));
-                }
-            }
-            if (info.maxOutputChannels > 2) {
-                for (const auto& f : test_formats) {
-                    tmp = get_supported_input(f, info.maxOutputChannels);
+                    tmp = get_supported_output(f, ChannelsType::stereo);
                     ret.insert(end(ret), begin(tmp), end(tmp));
                 }
             }
@@ -341,23 +430,24 @@ struct PaDeviceInfoEx {
     private:
     mutable supported_audio_t supported_audio_types;
     supported_audio_t get_supported_input(
-        const SampleFormat& sf, const unsigned int nch) const noexcept {
+        const SampleFormat& sf, const ChannelsType& nch) const noexcept {
         supported_audio_t ret;
         auto ip = prepareInputParams(index, sf, 0, nch);
         for (const auto& sr : allowed_samplerates) {
             if (Pa_IsFormatSupported(&ip, nullptr, (double)sr) == paFormatIsSupported) {
-                ret.emplace_back(std::move(AudioFormat{true, sr, sf, nch}));
+                ret.emplace_back(std::move(AudioFormat{DeviceTypes::input, sr, sf, nch}));
             }
         }
         return ret;
     }
     supported_audio_t get_supported_output(
-        const SampleFormat& sf, const unsigned int nch) const noexcept {
+        const SampleFormat& sf, const ChannelsType& nch) const noexcept {
         supported_audio_t ret;
         auto op = prepareOutputParams(index, sf, (PaTime)0, nch);
         for (const auto& sr : allowed_samplerates) {
             if (Pa_IsFormatSupported(nullptr, &op, (double)sr) == paFormatIsSupported) {
-                ret.emplace_back(std::move(AudioFormat{false, sr, sf, nch}));
+                ret.emplace_back(
+                    std::move(AudioFormat{DeviceTypes::output, sr, sf, nch}));
             }
         }
         return ret;
@@ -375,62 +465,6 @@ struct notification_interface {
 
 using notification_collection = std::vector<notification_interface*>;
 
-struct ChannelsType {
-    static constexpr uint8_t input = 0;
-    static constexpr uint8_t output = 1;
-    static constexpr uint8_t mono = 1;
-    static constexpr uint8_t stereo = 2;
-
-    std::array<uint8_t, 2> m_value = {stereo, stereo};
-    std::string to_string() const noexcept {
-        std::string s("stereo");
-        if (m_value[0] == mono) s = "mono";
-        return s;
-    }
-#pragma warning(disable : 4130)
-    inline uint8_t operator[](int i) const {
-        const auto idx = static_cast<uint8_t>(i);
-
-        if (idx >= 2) {
-            assert("wtf?" == 0);
-            throw std::out_of_range("Channels: bad channel index, should be 0 or 1");
-        }
-        return m_value[idx];
-    }
-
-    inline uint8_t& operator[](int i) {
-        const auto idx = static_cast<uint8_t>(i);
-
-        if (idx >= 2) {
-            assert("wtf?" == 0);
-            throw std::out_of_range("Channels: bad channel index, should be 0 or 1");
-        }
-        return m_value[idx];
-    }
-};
-struct SampleRateType {
-
-    static constexpr unsigned int defaultSampleRate = 44100;
-    SampleRateType(unsigned int val) : m_value(val) {}
-    SampleRateType(const SampleRateType& rhs) = default;
-    SampleRateType& operator=(const SampleRateType& rhs) = default;
-    SampleRateType(SampleRateType&& rhs) = default;
-    SampleRateType& operator=(SampleRateType&& rhs) = default;
-    SampleRateType() : m_value(defaultSampleRate){};
-    unsigned int m_value = 44100;
-    inline bool operator==(unsigned int to_what) const noexcept {
-        return to_what == m_value;
-    }
-    inline bool operator<(unsigned int to_what) const noexcept {
-        return m_value < to_what;
-    }
-    inline bool operator>(unsigned int to_what) const noexcept {
-        return m_value > to_what;
-    }
-
-    std::string to_string() const noexcept { return std::to_string(m_value) + " Hz"; }
-};
-
 template <typename AUDIOCALLBACK> struct PortAudio {
 
     private:
@@ -444,7 +478,13 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         }
     }
 
+    std::array<PaDeviceInfoEx, 2> m_currentDevices;
+
     public:
+    const PaDeviceInfoEx& currentDevice(const DeviceTypes ty) {
+        const auto idx = static_cast<int>(ty);
+        return m_currentDevices[idx];
+    }
     int errCode() const noexcept { return this->m_errcode; }
 
     PortAudio(AUDIOCALLBACK& acb, notification_interface* pnotify = nullptr)
@@ -500,8 +540,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             throw std::runtime_error(s);
         }
 
-        this->changeDevice(*in, 0);
-        this->changeDevice(*out, 1);
+        this->changeDevice(*in, DeviceTypes::input);
+        this->changeDevice(*out, DeviceTypes::output);
         if (info.was_running) {
             prepareStream(sampleRate(), m_channels, true);
             this->Start();
@@ -514,28 +554,6 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         changeOutputChannels
     };
 
-    auto getSupportedSampleratesforInput(
-        const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
-        return getSupportedSamplerates(INPUT_DEVICE);
-    }
-    auto getSupportedSampleratesforOutput(
-        const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
-        return getSupportedSamplerates(OUTPUT_DEVICE);
-    }
-
-    auto getSupportedSamplerates(
-        int forInOrOut, const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
-        std::set<unsigned int> ret;
-
-        const auto& fmts = m_currentDevices[forInOrOut].get_supported_audio_types();
-        for (const auto& f : in) {
-            if (f.fmt == fmt) {
-                ret.insert(f.samplerate);
-            }
-        }
-        return ret;
-    }
-
     // find a common sample rate between the input and output, if possible
     auto findCommonSamplerate(
         const SampleFormat& fmt = SampleFormat::Float32) const noexcept {
@@ -547,15 +565,15 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         unsigned int last_result = 0;
 
         for (const auto& f : in) {
-            if (f.fmt == fmt) {
+            if (f.samplefmt == fmt) {
                 for (const auto& sup : out) {
-                    if (sup.fmt == fmt) {
+                    if (sup.samplefmt == fmt) {
                         if (f.samplerate == sup.samplerate
                             && f.channels == sup.channels) {
                             const auto fsr = f.samplerate;
                             if (fsr > last_result) {
-                                common_sr = fsr;
-                                last_result = fsr;
+                                common_sr = fsr.m_value;
+                                last_result = common_sr;
                             }
                         }
                     }
@@ -567,9 +585,16 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         return common_sr;
     }
 
+    PaError isFormatSupported(const AudioFormat& fmt) const noexcept {
+        int i = static_cast<int>(fmt.forInOrOut);
+        return m_currentDevices[i].isFormatSupported(fmt);
+    }
+
+    /*/
     // throws
     bool isFormatSupported(
-        ChannelsType& chans, SampleRateType& samplerate, int& bitdepth) {
+        ChannelsType& chans, SampleRateType& samplerate, int& bitdepth, const DeviceTypes
+    inOrOut) {
 
         static formatSuppRecurseReasons recurse_reason = formatSuppRecurseReasons::none;
         if (samplerate == 0) samplerate = 44100;
@@ -601,7 +626,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             if (m_errcode == paInvalidSampleRate) {
                 msg = ("Required sample rate of ");
                 msg += samplerate.to_string();
-                msg += " is not supported by your device.\n\nChange its properties in "
+                msg += " is not supported by your device.\n\nYou may need to change its "
+                       "properties in "
                        "Windows to allow "
                        "a bit depth of 32-bit and the required sample rate, if possible";
                 msg += "\n\n\nPortaudio reports:\n";
@@ -668,6 +694,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         }
         return true;
     }
+    /*/
 
     // we do not own these:
     notification_collection m_notification_interfaces;
@@ -731,13 +758,15 @@ template <typename AUDIOCALLBACK> struct PortAudio {
 
     void notifyNewInputDevice() {
         for (auto i : m_notification_interfaces) {
-            i->onInputDeviceChanged(this->m_currentDevices[INPUT_DEVICE]);
+            i->onInputDeviceChanged(
+                this->m_currentDevices[static_cast<int>(DeviceTypes::input)]);
         }
     }
 
     void notifyNewOutputDevice() {
         for (auto i : m_notification_interfaces) {
-            i->onOutputDeviceChanged(this->m_currentDevices[OUTPUT_DEVICE]);
+            i->onOutputDeviceChanged(
+                this->m_currentDevices[static_cast<int>(DeviceTypes::output)]);
         }
     }
 
@@ -750,7 +779,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     Dsp::EnvelopeFollower<> m_env_output;
 
     std::atomic<int> m_running{0};
-    ChannelsType m_channels = {2, 2};
+    ChannelsType m_channels[2];
 
     PaTime m_startTime{0};
 
@@ -834,9 +863,9 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         if (pthis) {
             const auto byteCount = pthis->getByteCount(frameCount);
 
-            if (pthis->monoInput() && pthis->m_channels[0] == 2) {
-                downMixToStereo(
-                    (float*)input, (float* const)input, frameCount, pthis->m_channels[0]);
+            if (pthis->monoInput() && pthis->m_channels[0] == ChannelsType::mono) {
+                downMixToStereo((float*)input, (float* const)input, frameCount,
+                    pthis->m_channels[0].m_value);
             }
             memset(output, 0, byteCount);
 
@@ -871,18 +900,20 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     SampleRateType sampleRate() const noexcept { return m_sampleRate; }
 
     // throws
-    PaError prepareStream(const SampleRateType& samplerate, const ChannelsType& channels,
-        const bool super_low_latency = true) {
+    PaError prepareStream(const SampleRateType& samplerate,
+        const ChannelsType channels[2], const bool super_low_latency = true) {
         if (m_stream) this->Close();
         PaStreamParameters& ip = m_inputParams;
         ip = prepareInputParams(this->m_currentDevices[0].index, SampleFormat::Float32,
-            m_currentDevices[0].info.defaultLowInputLatency, channels[INPUT_DEVICE]);
-        ip.channelCount = channels[0];
+            m_currentDevices[0].info.defaultLowInputLatency,
+            channels[static_cast<int>(DeviceTypes::input)]);
+        ip.channelCount = channels[0].m_value;
 
         PaStreamParameters& op = m_outputParams;
         op = prepareOutputParams(this->m_currentDevices[1].index, SampleFormat::Float32,
-            m_currentDevices[1].info.defaultLowOutputLatency, channels[OUTPUT_DEVICE]);
-        op.channelCount = channels[1];
+            m_currentDevices[1].info.defaultLowOutputLatency,
+            channels[static_cast<int>(DeviceTypes::output)]);
+        op.channelCount = channels[1].m_value;
         PaStreamFlags flags = prepareFlags();
 
         if (super_low_latency) {
@@ -916,8 +947,12 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             Close();
         }
         try {
-            if (!m_stream)
-                m_errcode = prepareStream(samplerate, chans, super_low_latency);
+            if (!m_stream) {
+                ChannelsType mychans[2];
+                mychans[0] = chans;
+                mychans[1] = chans;
+                m_errcode = prepareStream(samplerate, mychans, super_low_latency);
+            }
         } catch (const std::exception& e) {
             if (m_errcode == 0) {
                 m_errcode = -1;
@@ -981,11 +1016,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     api_list m_apis;
     PaHostApiInfo m_currentApi = {0};
 
-    std::array<PaDeviceInfoEx, 2> m_currentDevices;
-
     PaDeviceInfoEx m_d;
-    static inline constexpr int INPUT_DEVICE = 0;
-    static inline constexpr int OUTPUT_DEVICE = 1;
 
     std::string getErrors() noexcept {
         const auto err = m_errcode;
@@ -1046,8 +1077,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         this->m_devices = enumDevices(m_currentApi);
         this->notifyNewApi(); // only once we have enumerated devices, so client can
                               // populate them
-        changeDevice(api->defaultInputDevice, INPUT_DEVICE);
-        changeDevice(api->defaultOutputDevice, OUTPUT_DEVICE);
+        changeDevice(api->defaultInputDevice, DeviceTypes::input);
+        changeDevice(api->defaultOutputDevice, DeviceTypes::output);
     }
 
     // throws std::runtime_error
@@ -1062,7 +1093,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     }
 
     // throws
-    void changeDevice(int deviceIndex, int inOrOut = OUTPUT_DEVICE) {
+    void changeDevice(int deviceIndex, const DeviceTypes& inOrOut) {
         const auto info = Pa_GetDeviceInfo(deviceIndex);
         Close();
 
@@ -1089,10 +1120,10 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             throw std::runtime_error("Unexpected: changeDevice cannot find device");
         }
 
-        m_currentDevices[inOrOut] = *p;
+        m_currentDevices[static_cast<int>(inOrOut)] = *p;
 
-        assert(!m_currentDevices[inOrOut].extendedName.empty());
-        if (inOrOut == INPUT_DEVICE) {
+        assert(!m_currentDevices[static_cast<int>(inOrOut)].extendedName.empty());
+        if (inOrOut == DeviceTypes::input) {
             notifyNewInputDevice();
         } else {
             notifyNewOutputDevice();
@@ -1100,7 +1131,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     }
 
     // throws
-    void changeDevice(const PaDeviceInfoEx& di, int inOrOut) {
+    void changeDevice(const PaDeviceInfoEx& di, const DeviceTypes& inOrOut) {
         std::string_view n1(m_currentApi.name);
         auto devhost = Pa_GetHostApiInfo(di.info.hostApi);
         if (!devhost) {
@@ -1109,9 +1140,9 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         }
         std::string_view n2(devhost->name);
         assert(n1 == n2); // must belong to current api
-        m_currentDevices[inOrOut] = di;
-        assert(!m_currentDevices[inOrOut].extendedName.empty());
-        if (inOrOut == INPUT_DEVICE) {
+        m_currentDevices[static_cast<int>(inOrOut)] = di;
+        assert(!m_currentDevices[static_cast<int>(inOrOut)].extendedName.empty());
+        if (inOrOut == DeviceTypes::input) {
             notifyNewInputDevice();
         } else {
             notifyNewOutputDevice();
@@ -1135,8 +1166,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         }
 
         // cannot ignore any errors here
-        changeDevice(in_dev_index, INPUT_DEVICE);
-        changeDevice(out_dev_index, OUTPUT_DEVICE);
+        changeDevice(in_dev_index, portaudio_cpp::DeviceTypes::input);
+        changeDevice(out_dev_index, portaudio_cpp::DeviceTypes::output);
     }
 
     private:

@@ -45,8 +45,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     void mypopOutputDevices();
     void myChangeAPI(CString piName);
     void mypopAllDevices();
-    void mypopDevices(const int forInputOrOutput);
-    void myShowCurrentDevice(int forInOrOut);
+    void mypopDevices(const portaudio_cpp::DeviceTypes forInputOrOutput);
+    void myShowCurrentDevice(const portaudio_cpp::DeviceTypes forInputOrOutput);
     int myPreparePortAudio(const portaudio_cpp::ChannelsType& chans,
         const portaudio_cpp::SampleRateType& samplerate);
     void showPaProgress(const char* what);
@@ -376,4 +376,5 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     afx_msg void OnBnClickedBtnConfigAudio();
     void savePlugWindowPositions();
     BOOL restorePlugWindowPosition(const winamp_dsp::Plugin& plugin);
+    bool myPreparePlay(portaudio_cpp::AudioFormat& myfmt);
 };
