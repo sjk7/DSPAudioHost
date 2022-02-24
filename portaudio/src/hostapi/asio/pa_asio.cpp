@@ -208,6 +208,9 @@ static ASIOCallbacks asioCallbacks_
 #define PA_ASIO_SET_LAST_HOST_ERROR(errorCode, errorText)                                \
     PaUtil_SetLastHostErrorInfo(paASIO, errorCode, errorText)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 static void PaAsio_SetLastSystemError(DWORD errorCode) {
     LPVOID lpMsgBuf;
     FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
@@ -217,6 +220,10 @@ static void PaAsio_SetLastSystemError(DWORD errorCode) {
 }
 
 #define PA_ASIO_SET_LAST_SYSTEM_ERROR(errorCode) PaAsio_SetLastSystemError(errorCode)
+
+#ifdef __cplusplus
+}
+#endif
 
 static const char* PaAsio_GetAsioErrorText(ASIOError asioError) {
     const char* result;

@@ -203,13 +203,24 @@ static PaError WriteStream(PaStream* stream, const void* buffer, unsigned long f
 static signed long GetStreamReadAvailable(PaStream* stream);
 static signed long GetStreamWriteAvailable(PaStream* stream);
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #if _WIN32_WINNT >= 0x0602 // Windows 8 and above
 #define PA_DS_SET_LAST_DIRECTSOUND_ERROR(hr)                                             \
     PaWinUtil_SetLastSystemErrorInfo(paDirectSound, hr)
 #else
 /* FIXME: should use DXGetErrorString/DXGetErrorDescription for Windows 7 and below */
 #define PA_DS_SET_LAST_DIRECTSOUND_ERROR(hr)                                             \
-    PaUtil_SetLastHostErrorInfo(paDirectSound, hr, "DirectSound error")
+    if (hr == 0x8889000a) {                                                              \
+        PaUtil_SetLastHostErrorInfo(                                                     \
+            paDirectSound, hr, "DirectSound error: Device in use");                      \
+    } else {                                                                             \
+        PaUtil_SetLastHostErrorInfo(paDirectSound, hr, "DirectSound error");             \
+    }
+#endif
+#ifdef __cplusplus
+}
 #endif
 
 /************************************************* DX Prototypes **********/
@@ -2818,6 +2829,28 @@ static PaError StartStream(PaStream* s) {
                 stream->pDirectSoundOutputBuffer, 0, 0, DSBPLAY_LOOPING);
             DBUG(("PaHost_StartOutput: IDirectSoundBuffer_Play returned = 0x%X.\n", hr));
             if (hr != DS_OK) {
+
+                if (FACILITY_WINDOWS == HRESULT_FACILITY(hr)) hr = HRESULT_CODE(hr);
+                TCHAR* szErrMsg;
+
+                if (FormatMessage(
+                        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
+                        hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&szErrMsg,
+                        0, NULL)
+                    != 0) {
+                    //_tprintf(TEXT("%s"), szErrMsg);
+                    LocalFree(szErrMsg);
+                } else {
+                    assert(0);
+                }
+                //_tprintf(
+                // TEXT("[Could not find a description for error # %#x.]\n"),
+                // hr);
+
+                HRESULT e = DSERR_ALLOCATED;
+                if (hr == e) {
+                    assert("ffs" == 0);
+                }
                 result = paUnanticipatedHostError;
                 PA_DS_SET_LAST_DIRECTSOUND_ERROR(hr);
                 goto error;

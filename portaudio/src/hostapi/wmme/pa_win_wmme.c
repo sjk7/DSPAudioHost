@@ -167,8 +167,9 @@
 #define PA_MME_MIN_HOST_INPUT_BUFFER_COUNT_FULL_DUPLEX_ (4)
 #define PA_MME_MIN_HOST_INPUT_BUFFER_COUNT_HALF_DUPLEX_ (4)
 #define PA_MME_HOST_BUFFER_GRANULARITY_FRAMES_WHEN_UNSPECIFIED_ (16)
-#define PA_MME_MAX_HOST_BUFFER_SECS_ (0.3) /* Do not exceed unless user buffer exceeds   \
-                                            */
+#define PA_MME_MAX_HOST_BUFFER_SECS_                                                     \
+    (0.3) /* Do not exceed unless user buffer exceeds                                    \
+           */
 #define PA_MME_MAX_HOST_BUFFER_BYTES_                                                    \
     (32 * 1024) /* Has precedence over PA_MME_MAX_HOST_BUFFER_SECS_, some drivers are    \
                    known to crash with buffer sizes > 32k */
@@ -179,8 +180,9 @@
     (3) /* always use at least 3 input buffers for full duplex */
 #define PA_MME_MIN_HOST_INPUT_BUFFER_COUNT_HALF_DUPLEX_ (2)
 #define PA_MME_HOST_BUFFER_GRANULARITY_FRAMES_WHEN_UNSPECIFIED_ (16)
-#define PA_MME_MAX_HOST_BUFFER_SECS_ (0.1) /* Do not exceed unless user buffer exceeds   \
-                                            */
+#define PA_MME_MAX_HOST_BUFFER_SECS_                                                     \
+    (0.1) /* Do not exceed unless user buffer exceeds                                    \
+           */
 #define PA_MME_MAX_HOST_BUFFER_BYTES_                                                    \
     (32 * 1024) /* Has precedence over PA_MME_MAX_HOST_BUFFER_SECS_, some drivers are    \
                    known to crash with buffer sizes > 32k */
@@ -1535,17 +1537,16 @@ static PaError CalculateBufferSettings(unsigned long* hostFramesPerInputBuffer,
                 ? PA_MME_MIN_HOST_INPUT_BUFFER_COUNT_FULL_DUPLEX_
                 : PA_MME_MIN_HOST_INPUT_BUFFER_COUNT_HALF_DUPLEX_;
 
-            result
-                = SelectHostBufferSizeFramesAndHostBufferCount(
-                    (unsigned long)(suggestedInputLatency * sampleRate), /* (truncate) */
-                    userFramesPerBuffer, minimumBufferCount,
-                    (unsigned long)(PA_MME_MAX_HOST_BUFFER_SECS_
-                        * sampleRate), /* in frames. preferred maximum */
-                    (PA_MME_MAX_HOST_BUFFER_BYTES_
-                        / hostInputFrameSizeBytes), /* in frames. a hard limit. note
-                                                    truncation due to division is
-                                                    intentional here to limit max bytes */
-                    hostFramesPerInputBuffer, hostInputBufferCount);
+            result = SelectHostBufferSizeFramesAndHostBufferCount(
+                (unsigned long)(suggestedInputLatency * sampleRate), /* (truncate) */
+                userFramesPerBuffer, minimumBufferCount,
+                (unsigned long)(PA_MME_MAX_HOST_BUFFER_SECS_
+                    * sampleRate), /* in frames. preferred maximum */
+                (PA_MME_MAX_HOST_BUFFER_BYTES_
+                    / hostInputFrameSizeBytes), /* in frames. a hard limit. note
+                                                truncation due to division is
+                                                intentional here to limit max bytes */
+                hostFramesPerInputBuffer, hostInputBufferCount);
             if (result != paNoError) goto error;
         }
     } else {
@@ -2803,11 +2804,12 @@ PA_THREAD_FUNC ProcessingThreadProc(void* pArg) {
                         if (playbackPosition >= writePosition) {
                             timeInfo.outputBufferDacTime = time
                                 + ((double)(writePosition
-                                       + (framesInBufferRing - playbackPosition))
+                                       + (double)((double)framesInBufferRing
+                                           - playbackPosition))
                                     * stream->bufferProcessor.samplePeriod);
                         } else {
                             timeInfo.outputBufferDacTime = time
-                                + ((double)(writePosition - playbackPosition)
+                                + ((double)((double)writePosition - playbackPosition)
                                     * stream->bufferProcessor.samplePeriod);
                         }
                     }

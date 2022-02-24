@@ -1,22 +1,27 @@
 [
   {
     "directory": "U:\\DSPAudio\\DspAudioHost",
-    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\Helpers\\PBar.cpp\"",
-    "file": "U:\\DSPAudio\\Helpers\\PBar.cpp"
-  },
-  {
-    "directory": "U:\\DSPAudio\\DspAudioHost",
-    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\DspAudioHost.cpp\"",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W4 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _AFXDLL \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MDd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\DspAudioHost.cpp\"",
     "file": "U:\\DSPAudio\\DspAudioHost\\DspAudioHost.cpp"
   },
   {
     "directory": "U:\\DSPAudio\\DspAudioHost",
-    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\DspAudioHostDlg.cpp\"",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W4 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _AFXDLL \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MDd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\DspAudioHostDlg.cpp\"",
     "file": "U:\\DSPAudio\\DspAudioHost\\DspAudioHostDlg.cpp"
   },
   {
     "directory": "U:\\DSPAudio\\DspAudioHost",
-    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W3 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MTd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\pch.cpp\"",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W4 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _AFXDLL \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MDd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\PBar.cpp\"",
+    "file": "U:\\DSPAudio\\DspAudioHost\\PBar.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\DspAudioHost",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W4 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _AFXDLL \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MDd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\pch.cpp\"",
     "file": "U:\\DSPAudio\\DspAudioHost\\pch.cpp"
+  },
+  {
+    "directory": "U:\\DSPAudio\\DspAudioHost",
+    "command": "\"C:\\WINDOWS\\system32\\CL.exe\" \/c \/ZI \/JMC \/nologo \/W4 \/WX- \/diagnostics:column \/Od \/Oy- \/D CODE_ANALYSIS \/D WIN32 \/D _WINDOWS \/D _DEBUG \/D _UNICODE \/D UNICODE \/D _AFXDLL \/D _CRT_SECURE_NO_WARNINGS \/D DSPAUDIOHOST \/EHsc \/RTC1 \/MDd \/GS \/fp:precise \/std:c++17 \/Fo\"Debug\\\\\" \/Gd \/TP   \"U:\\DSPAudio\\DspAudioHost\\VisualManagerWindows10.cpp\"",
+    "file": "U:\\DSPAudio\\DspAudioHost\\VisualManagerWindows10.cpp"
   }
 ]

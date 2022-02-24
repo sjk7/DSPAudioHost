@@ -922,9 +922,9 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         return flags;
     }
 
-    PaStreamParameters m_inputParams = {0};
-    PaStreamParameters m_outputParams = {0};
-    SampleRateType m_sampleRate = 0;
+    PaStreamParameters m_inputParams;
+    PaStreamParameters m_outputParams;
+    SampleRateType m_sampleRate;
 
     SampleRateType sampleRate() const noexcept { return m_sampleRate; }
 
@@ -1051,7 +1051,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     using api_list = std::vector<PaHostApiInfo>;
     device_list m_devices;
     api_list m_apis;
-    PaHostApiInfo m_currentApi = {0};
+    PaHostApiInfo m_currentApi{0};
 
     std::string getErrors() noexcept {
         const auto err = m_errcode;

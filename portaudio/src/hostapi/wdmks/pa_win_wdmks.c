@@ -1373,6 +1373,13 @@ static PaWinWdmPin* PinNew(
         goto error;
     }
 
+    if (defaultSampleRateIndex >= 13 || defaultSampleRateIndex < 0) {
+        PA_DEBUG(("PinNew: default sample rate out of range!, skipping pin!\n"));
+        PaWinWDM_SetLastErrorInfo(
+            paUnanticipatedHostError, "PinNew: default sample rate out of range");
+        result = paUnanticipatedHostError;
+        goto error;
+    }
     /* Set the default sample rate */
     pin->defaultSampleRate = defaultSampleRateSearchOrder[defaultSampleRateIndex];
     PA_DEBUG(("PinNew: Default sample rate = %d Hz\n", pin->defaultSampleRate));
@@ -3120,12 +3127,14 @@ static PaError ScanDeviceInfos(struct PaUtilHostApiRepresentation* hostApi,
 
                     /* Get the name of the "device" */
                     if (pin->inputs == NULL) {
-                        wcsncpy(localCompositeName, pin->friendlyName, MAX_PATH);
+                        wcsncpy(localCompositeName, pin->friendlyName, MAX_PATH - 1);
+                        localCompositeName[MAX_PATH - 1] = 0;
                         wdmDeviceInfo->muxPosition = -1;
                         wdmDeviceInfo->endpointPinId = pin->endpointPinId;
                     } else {
                         PaWinWdmMuxedInput* input = pin->inputs[m];
-                        wcsncpy(localCompositeName, input->friendlyName, MAX_PATH);
+                        wcsncpy(localCompositeName, input->friendlyName, MAX_PATH - 1);
+                        localCompositeName[MAX_PATH - 1] = 0;
                         wdmDeviceInfo->muxPosition = (int)m;
                         wdmDeviceInfo->endpointPinId = input->endpointPinId;
                     }
@@ -4239,7 +4248,8 @@ static PaError OpenStream(struct PaUtilHostApiRepresentation* hostApi, PaStream*
         if (stream->render.framesPerBuffer
             > (unsigned long)sampleRate) { /* Upper limit is 1 second */
             stream->render.framesPerBuffer = (unsigned long)sampleRate;
-        } else if (stream->render.framesPerBuffer < stream->render.pPin->frameSize) {
+        } else if (stream->render.pPin
+            && (stream->render.framesPerBuffer < stream->render.pPin->frameSize)) {
             stream->render.framesPerBuffer = stream->render.pPin->frameSize;
         }
         PA_DEBUG(("Output frames chosen:%ld\n", stream->render.framesPerBuffer));
@@ -4251,7 +4261,8 @@ static PaError OpenStream(struct PaUtilHostApiRepresentation* hostApi, PaStream*
             PaWinWDMKSInfo* pInfo
                 = (PaWinWDMKSInfo*)outputParameters->hostApiSpecificStreamInfo;
 
-            if (stream->render.pPin->parentFilter->devInfo.streamingType
+            if (stream->render.pPin
+                && stream->render.pPin->parentFilter->devInfo.streamingType
                     == Type_kWaveCyclic
                 && pInfo->noOfPackets != 0) {
                 stream->render.noOfPackets = pInfo->noOfPackets;
@@ -4278,7 +4289,7 @@ static PaError OpenStream(struct PaUtilHostApiRepresentation* hostApi, PaStream*
     }
 
     /* Allocate/get all the buffers for host I/O */
-    if (stream->userInputChannels > 0) {
+    if (stream->userInputChannels > 0 && stream->capture.pPin) {
         stream->streamRepresentation.streamInfo.inputLatency
             = stream->capture.framesPerBuffer / sampleRate;
 
@@ -4379,7 +4390,9 @@ static PaError OpenStream(struct PaUtilHostApiRepresentation* hostApi, PaStream*
     if (stream->userOutputChannels > 0) {
         stream->streamRepresentation.streamInfo.outputLatency
             = stream->render.framesPerBuffer / sampleRate;
-
+        if (!stream->render.pPin) {
+            goto error;
+        }
         switch (stream->render.pPin->parentFilter->devInfo.streamingType) {
             case Type_kWaveCyclic: {
                 unsigned size = stream->render.noOfPackets
@@ -4514,6 +4527,11 @@ static PaError OpenStream(struct PaUtilHostApiRepresentation* hostApi, PaStream*
         stream->capture.packets = (DATAPACKET*)PaUtil_GroupAllocateMemory(
             stream->allocGroup, stream->capture.noOfPackets * sizeof(DATAPACKET));
         if (stream->capture.packets == NULL) {
+            result = paInsufficientMemory;
+            goto error;
+        }
+
+        if (stream->capture.pPin == NULL) {
             result = paInsufficientMemory;
             goto error;
         }
@@ -4770,7 +4788,7 @@ static PaError OpenStream(struct PaUtilHostApiRepresentation* hostApi, PaStream*
     } else {
         stream->hostApiStreamInfo.input.device = paNoDevice;
     }
-    if (stream->userOutputChannels && outputParameters) {
+    if (stream->userOutputChannels && outputParameters && stream->render.pPin) {
         stream->hostApiStreamInfo.output.device = Pa_HostApiDeviceIndexToDeviceIndex(
             Pa_HostApiTypeIdToHostApiIndex(paWDMKS), outputParameters->device);
         stream->hostApiStreamInfo.output.channels = stream->deviceOutputChannels;
@@ -4787,8 +4805,12 @@ static PaError OpenStream(struct PaUtilHostApiRepresentation* hostApi, PaStream*
     stream->streamRepresentation.streamInfo.hostApiSpecificStreamInfo =
     &stream->hostApiStreamInfo;*/
     stream->streamRepresentation.streamInfo.structVersion = 2;
+    if (stream) {
+        *s = (PaStream*)stream;
 
-    *s = (PaStream*)stream;
+    } else {
+        assert(0);
+    }
 
     PA_LOGL_;
     return result;
@@ -4799,20 +4821,22 @@ occupied:
     PaWinWDM_SetLastErrorInfo(result, "Device is occupied");
 
 error:
-    PaUtil_TerminateBufferProcessor(&stream->bufferProcessor);
+    if (stream) {
+        PaUtil_TerminateBufferProcessor(&stream->bufferProcessor);
 
-    CloseStreamEvents(stream);
+        CloseStreamEvents(stream);
 
-    if (stream->allocGroup) {
-        PaUtil_FreeAllAllocations(stream->allocGroup);
-        PaUtil_DestroyAllocationGroup(stream->allocGroup);
-        stream->allocGroup = 0;
+        if (stream->allocGroup) {
+            PaUtil_FreeAllAllocations(stream->allocGroup);
+            PaUtil_DestroyAllocationGroup(stream->allocGroup);
+            stream->allocGroup = 0;
+        }
+
+        if (stream->render.pPin) PinClose(stream->render.pPin);
+        if (stream->capture.pPin) PinClose(stream->capture.pPin);
+
+        PaUtil_FreeMemory(stream);
     }
-
-    if (stream->render.pPin) PinClose(stream->render.pPin);
-    if (stream->capture.pPin) PinClose(stream->capture.pPin);
-
-    PaUtil_FreeMemory(stream);
 
     PA_LOGL_;
     return result;
@@ -5322,14 +5346,14 @@ PA_THREAD_FUNC ProcessingThread(void* pParam) {
             / info.stream->streamRepresentation.streamInfo.sampleRate));
     PA_DEBUG(("Out buffer len: %.3f ms\n",
         (2000 * (double)info.stream->render.framesPerBuffer)
-            / info.stream->streamRepresentation.streamInfo.sampleRate));
-    info.timeout
-        = (DWORD)max((2000 * info.stream->render.framesPerBuffer
-                             / info.stream->streamRepresentation.streamInfo.sampleRate
-                         + 0.5),
-            (2000 * info.stream->capture.framesPerBuffer
-                    / info.stream->streamRepresentation.streamInfo.sampleRate
-                + 0.5));
+            / (double)info.stream->streamRepresentation.streamInfo.sampleRate));
+    info.timeout = (DWORD)max(
+        (2000 * (double)info.stream->render.framesPerBuffer
+                / (double)info.stream->streamRepresentation.streamInfo.sampleRate
+            + 0.5),
+        (2000 * (double)info.stream->capture.framesPerBuffer
+                / (double)info.stream->streamRepresentation.streamInfo.sampleRate
+            + 0.5));
     info.timeout = max(info.timeout * 8, 100);
     timerPeriod = info.timeout;
     PA_DEBUG(("Timeout = %ld ms\n", info.timeout));
@@ -5668,7 +5692,9 @@ end:
     PA_LOGL_;
     return result;
 }
-
+#ifdef _MSC_VER
+#pragma warning(disable : 6258) // terminateThread complaints
+#endif
 static PaError StopStream(PaStream* s) {
     PaError result = paNoError;
     PaWinWdmStream* stream = (PaWinWdmStream*)s;

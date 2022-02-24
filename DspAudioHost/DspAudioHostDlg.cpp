@@ -638,21 +638,23 @@ void CDspAudioHostDlg::onApiChanged(const PaHostApiInfo& newApi) noexcept {
 using namespace portaudio_cpp;
 void CDspAudioHostDlg::onInputDeviceChanged(
     const PaDeviceInfoEx& newInputDevice) noexcept {
+    (void)newInputDevice;
     myShowCurrentDevice(portaudio_cpp::DeviceTypes::input);
     if (!m_loadingPaSettings) saveInput();
 }
 
 void CDspAudioHostDlg::onOutputDeviceChanged(
     const PaDeviceInfoEx& newOutputDevice) noexcept {
+    (void)newOutputDevice;
     myShowCurrentDevice(portaudio_cpp::DeviceTypes::output);
     if (!m_loadingPaSettings) saveOutput();
 }
 
-void CDspAudioHostDlg::onStreamStarted(const PaStreamInfo& streamInfo) noexcept {}
+void CDspAudioHostDlg::onStreamStarted(const PaStreamInfo&) noexcept {}
 
-void CDspAudioHostDlg::onStreamStopped(const PaStreamInfo& streamInfo) noexcept {}
+void CDspAudioHostDlg::onStreamStopped(const PaStreamInfo&) noexcept {}
 
-void CDspAudioHostDlg::onStreamAbort(const PaStreamInfo& streamInfo) noexcept {}
+void CDspAudioHostDlg::onStreamAbort(const PaStreamInfo&) noexcept {}
 
 void CDspAudioHostDlg::mypopInputDevices() {
     mypopDevices(portaudio_cpp::DeviceTypes::input);
@@ -728,8 +730,8 @@ END_MESSAGE_MAP()
 #pragma warning(default : 26454)
 
 RECT my_get_window_position(HWND hwnd) {
-    RECT rect = {0};
-    WINDOWPLACEMENT wp = {0};
+    RECT rect{0};
+    WINDOWPLACEMENT wp{0};
     wp.length = sizeof(WINDOWPLACEMENT);
     ASSERT(IsWindow(hwnd));
     ::GetWindowPlacement(hwnd, &wp);
@@ -761,6 +763,14 @@ static bool window_is_offscreen(HWND hwnd) {
 
 BOOL CDspAudioHostDlg::OnInitDialog() {
     CDialogEx::OnInitDialog();
+
+    CStringA tit = "DSPAudioHost (RC) Built at: ";
+    tit += __TIME__;
+    tit += " on: ";
+    tit += __DATE__;
+
+    CStringW wtit(tit);
+    SetWindowText(wtit);
 
     NONCLIENTMETRICS metrics;
     metrics.cbSize = sizeof(NONCLIENTMETRICS);
@@ -810,13 +820,13 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
 
     PostMessage(WM_FIRST_SHOWN);
 
-    WINDOWPLACEMENT wp = {0};
+    WINDOWPLACEMENT wp{0};
     wp.length = sizeof(wp);
 
     UINT nSize = 0;
 
     LPBYTE pPlacementBytes = NULL;
-    WINDOWPLACEMENT orig = {0};
+    WINDOWPLACEMENT orig{0};
     orig.length = sizeof(orig);
 
     GetWindowPlacement(&orig);
@@ -868,7 +878,7 @@ void CDspAudioHostDlg::setupMeters() {
     vuInR.peak_hold_color_set(RGB(250, 201, 40));
 }
 
-LRESULT CDspAudioHostDlg::OnDialogShown(WPARAM w, LPARAM l) {
+LRESULT CDspAudioHostDlg::OnDialogShown(WPARAM, LPARAM) {
     UpdateWindow();
     myInitDialog();
     return 0;
@@ -938,7 +948,7 @@ void CDspAudioHostDlg::OnSelchangeComboApi() {
     PortAudioGlobalIndex old_ip_index;
     PortAudioGlobalIndex old_op_index;
     portaudio_cpp::AudioFormat old_format;
-    bool was_running = m_portaudio->m_running;
+    // bool was_running = m_portaudio->m_running;
     int found = 0;
 
     if (m_portaudio) {
@@ -980,11 +990,10 @@ void CDspAudioHostDlg::OnSelchangeComboApi() {
             OnCbnSelchangeComboOutput();
         }
 
-        if (was_running && found == 2) {
+        if (found == 2) {
             try {
-                if (!old_format.is_empty() && myPreparePlay(old_format)) {
-                    myPreparePortAudio(old_format.channels, old_format.samplerate);
-                    this->portaudioStart();
+                if (!old_format.is_empty()) {
+                    OnBnClickedBtnPlay();
                 }
             } catch (const std::exception& e) { //-V565
                 ::MessageBoxA(m_hWnd, e.what(),
@@ -1152,7 +1161,7 @@ BOOL CDspAudioHostDlg::restorePlugWindowPosition(const winamp_dsp::Plugin& plug)
     }
 
     if (!hwnd) return FALSE;
-    WINDOWPLACEMENT wp = {0};
+    WINDOWPLACEMENT wp{0};
     wp.length = sizeof(wp);
     CString wdesc(plug.description().data());
 
@@ -1183,7 +1192,7 @@ BOOL CDspAudioHostDlg::restorePlugWindowPosition(const winamp_dsp::Plugin& plug)
 
 void CDspAudioHostDlg::savePlugWindowPositions() {
 
-    WINDOWPLACEMENT mypos = {0};
+    WINDOWPLACEMENT mypos{0};
     mypos.length = sizeof(mypos);
     if (GetWindowPlacement(&mypos)) {
         theApp.WriteProfileBinary(
@@ -1202,7 +1211,7 @@ void CDspAudioHostDlg::savePlugWindowPositions() {
         }
         ASSERT(hwnd);
         if (IsWindow(hwnd)) {
-            WINDOWPLACEMENT wp = {0};
+            WINDOWPLACEMENT wp{0};
             wp.length = sizeof(wp);
 
             BOOL got = ::GetWindowPlacement(hwnd, &wp);
@@ -1367,7 +1376,7 @@ winamp_dsp::Plugin* CDspAudioHostDlg::myActivatePlug(
 std::string desc_find;
 int find_level = 0;
 
-static inline BOOL CALLBACK EnumWindowsProcFindPlug(_In_ HWND hwnd, _In_ LPARAM lParam) {
+static inline BOOL CALLBACK EnumWindowsProcFindPlug(_In_ HWND hwnd, _In_ LPARAM) {
     std::string s;
     s.resize(256);
     ::GetWindowTextA(hwnd, &s[0], 256);
@@ -1608,7 +1617,7 @@ static inline BOOL CenterWindow(HWND hwndWindow, int topOffset = 0) {
         GetWindowRect(hwndWindow, &rectWindow);
         GetWindowRect(hwndParent, &rectParent);
 
-        WINDOWPLACEMENT wp = {0};
+        WINDOWPLACEMENT wp{0};
         wp.length = sizeof(WINDOWPLACEMENT);
         BOOL gotp = ::GetWindowPlacement(hwndWindow, &wp);
         ASSERT(gotp);
@@ -1646,6 +1655,7 @@ static inline BOOL CenterWindow(HWND hwndWindow, int topOffset = 0) {
 void CDspAudioHostDlg::centreWindowOnMe(
     HWND hwnd, HWND parent, bool force, int topOffset) {
 
+    (void)parent;
     if (force) {
         ::CenterWindow(hwnd, topOffset);
 
@@ -1692,8 +1702,7 @@ void CDspAudioHostDlg::OnBnClickedBtnUp() {
 
 void CDspAudioHostDlg::OnBnClickedBtnDown() {
     int idxA = getSelectedIndex(listCur);
-    int cnt = listCur.GetItemCount();
-
+    const int cnt = listCur.GetItemCount();
     if (idxA < 0) {
         MessageBox(L"Please select an active plugin in the list");
         return;
@@ -1705,7 +1714,6 @@ void CDspAudioHostDlg::OnBnClickedBtnDown() {
 
     myShowActivePlugs();
     listCur.SetItemState(idxB, LVIS_SELECTED, LVIS_SELECTED);
-    cnt = listCur.GetItemCount();
 
     setUpDownButtonsState();
     settingsSavePlugins();
@@ -1969,7 +1977,7 @@ HBRUSH CDspAudioHostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
     return hbr;
 }
 
-void CDspAudioHostDlg::OnNMCustomdrawSliderVol(NMHDR* pNMHDR, LRESULT* pResult) {
+void CDspAudioHostDlg::OnNMCustomdrawSliderVol(NMHDR*, LRESULT* pResult) {
     // LPNMCUSTOMDRAW pNMCD = reinterpret_cast<LPNMCUSTOMDRAW>(pNMHDR);
     //  TODO: Add your control notification handler code here
     *pResult = 0;

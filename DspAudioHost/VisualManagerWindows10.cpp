@@ -98,7 +98,7 @@ void CMFCVisualManagerWindows10::OnFillHighlightedArea(
 
 // ???????????????
 COLORREF CMFCVisualManagerWindows10::OnDrawRibbonPanel(
-    CDC* pDC, CMFCRibbonPanel* pPanel, CRect rectPanel, CRect rectCaption) {
+    CDC* pDC, CMFCRibbonPanel*, CRect rectPanel, CRect) {
     CPen pen(PS_SOLID, 1, ::afxGlobalData.clrBarShadow);
     CPen* pOldPen = pDC->SelectObject(&pen);
     pDC->MoveTo(rectPanel.right, rectPanel.top);
@@ -300,8 +300,8 @@ void CMFCVisualManagerWindows10::OnDrawTab(
 
 // ???? TAB ?????
 void CMFCVisualManagerWindows10::OnDrawTabCloseButton(CDC* pDC, CRect rect,
-    const CMFCBaseTabCtrl* pTabWnd, BOOL bIsHighlighted, BOOL bIsPressed,
-    BOOL bIsDisabled) {
+    const CMFCBaseTabCtrl*, BOOL bIsHighlighted, BOOL /*IsPressed*/,
+    BOOL /*bIsDisabled*/) {
     rect.top -= 2;
 
     CFont* pOldFont = pDC->SelectObject(&::afxGlobalData.fontBold);
@@ -337,7 +337,7 @@ BOOL CMFCVisualManagerWindows10::OnEraseTabsFrame(
 
 // ?? TAB ?????????
 void CMFCVisualManagerWindows10::OnEraseTabsArea(
-    CDC* pDC, CRect rect, const CMFCBaseTabCtrl* pTabWnd) {
+    CDC* pDC, CRect rect, const CMFCBaseTabCtrl* /*pTabWnd*/) {
     // ?? TAB ????
     pDC->FillSolidRect(rect, ::afxGlobalData.clrBarFace + RGB(5, 6, 7));
 

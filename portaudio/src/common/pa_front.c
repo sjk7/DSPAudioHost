@@ -145,7 +145,14 @@ void PaUtil_SetLastHostErrorInfo(
     PaHostApiTypeId hostApiType, long errorCode, const char* errorText) {
     lastHostErrorInfo_.hostApiType = hostApiType;
     lastHostErrorInfo_.errorCode = errorCode;
+    if (hostApiType == paDirectSound && strlen(errorText) == 0) {
 
+        if (errorCode == -2004287478) {
+            const char* in_use_error = "DirectSound Device already in use.";
+            strncpy(lastHostErrorText_, in_use_error, PA_LAST_HOST_ERROR_TEXT_LENGTH_);
+            return;
+        }
+    }
     strncpy(lastHostErrorText_, errorText, PA_LAST_HOST_ERROR_TEXT_LENGTH_);
 }
 
