@@ -5,6 +5,7 @@
 #include <vector>
 #include <mmsystem.h> // for timeGetTime()
 #include <utility> // std::swap()
+#include <string>
 
 #define WM_VU_CLICKED WM_USER + 8000
 
@@ -15,7 +16,7 @@ class CPBar : public CWnd {
     public:
     struct colors {
         colors(COLORREF back, COLORREF fore, int percent)
-            : cb(back), cf(fore), pos(percent), m_color_pk(RGB(220, 220, 220)) {}
+            : cb(back), cf(fore), m_color_pk(RGB(220, 220, 220)), pos(percent) {}
         COLORREF cb; // backcolor, or "off" color
         COLORREF cf; // forecolor, on "on" color
         COLORREF m_color_pk; // peak indicator color

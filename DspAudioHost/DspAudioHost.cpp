@@ -8,8 +8,6 @@
 #include "framework.h"
 #include "DspAudioHost.h"
 #include "DspAudioHostDlg.h"
-#include "VisualManagerWindows10.h"
-// #include "../win32-darkmode/win32-darkmode/DarkMode.h"
 
 #pragma comment(lib, "winmm")
 

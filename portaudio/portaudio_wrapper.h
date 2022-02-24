@@ -452,7 +452,7 @@ struct PaDeviceInfoEx {
         auto ip = prepareInputParams(index, sf, 0, nch);
         for (const auto& sr : allowed_samplerates) {
             if (Pa_IsFormatSupported(&ip, nullptr, (double)sr) == paFormatIsSupported) {
-                ret.emplace_back(std::move(AudioFormat{DeviceTypes::input, sr, sf, nch}));
+                ret.emplace_back(AudioFormat{DeviceTypes::input, sr, sf, nch});
             }
         }
         return ret;
@@ -463,8 +463,7 @@ struct PaDeviceInfoEx {
         auto op = prepareOutputParams(index, sf, (PaTime)0, nch);
         for (const auto& sr : allowed_samplerates) {
             if (Pa_IsFormatSupported(nullptr, &op, (double)sr) == paFormatIsSupported) {
-                ret.emplace_back(
-                    std::move(AudioFormat{DeviceTypes::output, sr, sf, nch}));
+                ret.emplace_back(AudioFormat{DeviceTypes::output, sr, sf, nch});
             }
         }
         return ret;
@@ -1043,7 +1042,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
 
         m_stream = nullptr;
         m_errcode = 0;
-        return 0;
+        return ret;
     }
     PaStream* m_stream = nullptr;
 

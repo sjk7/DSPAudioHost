@@ -208,7 +208,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
         const int nch_max = (std::max)(nch_in, nch_out);
         const auto samplerate = m_portaudio->sampleRate().m_value;
 
-        const auto sampleRate = m_portaudio->sampleRate();
+        // const auto sampleRate = m_portaudio->sampleRate();
         static constexpr int WINAMP_PLUG_BITDEPTH = 16;
         static constexpr int WINAMP_PLUG_CHANS = 2;
         m_buf32in.resize(frameCount * nch_in); //-V525
@@ -292,14 +292,14 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
 #endif
 
     protected:
-    virtual void DoDataExchange(CDataExchange* pDX); // DDX/DDV support
+    virtual void DoDataExchange(CDataExchange* pDX) override; // DDX/DDV support
 
     // Implementation
     protected:
     HICON m_hIcon;
 
     // Generated message map functions
-    virtual BOOL OnInitDialog();
+    virtual BOOL OnInitDialog() override;
     void setupMeters();
     afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
     afx_msg void OnPaint();
@@ -372,7 +372,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     std::map<HWND, std::wstring> m_child_windowsB;
     winamp_dsp::Plugin& manageActivatePlug(winamp_dsp::Plugin&);
     LRESULT OnThemeChanged();
-    virtual BOOL OnWndMsg(UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult);
+    virtual BOOL OnWndMsg(
+        UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) override;
     afx_msg void OnBnClickedBtnConfigAudio();
     void savePlugWindowPositions();
     BOOL restorePlugWindowPosition(const winamp_dsp::Plugin& plugin);

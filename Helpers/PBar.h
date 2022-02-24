@@ -15,7 +15,7 @@ class CPBar : public CWnd {
     public:
     struct colors {
         colors(COLORREF back, COLORREF fore, int percent)
-            : cb(back), cf(fore), pos(percent), m_color_pk(RGB(220, 220, 220)) {}
+            : cb(back), cf(fore), m_color_pk(RGB(220, 220, 220)), pos(percent) {}
         COLORREF cb; // backcolor, or "off" color
         COLORREF cf; // forecolor, on "on" color
         COLORREF m_color_pk; // peak indicator color
@@ -460,7 +460,6 @@ class CPBar : public CWnd {
     void DrawPeak(CDC* pDC, const CRect& clientRect) {
 
         double active_ratio = 0;
-        int active_pos = 0;
         auto max = static_cast<double>(m_props.m_max);
         double w = static_cast<double>(clientRect.Width()) - 2;
         double h = static_cast<double>(clientRect.Height()) - 2;
@@ -475,7 +474,6 @@ class CPBar : public CWnd {
             // Draw the peak value:
             if (m_props.m_peak >= 0) {
                 active_ratio = (static_cast<float>(m_props.m_peak) / max);
-                active_pos = static_cast<int>(w * active_ratio);
                 CRect peakrect(clientRect);
                 peakrect.left = static_cast<int>(active_ratio * w);
                 peakrect.right = peakrect.left + 2;
@@ -487,7 +485,6 @@ class CPBar : public CWnd {
             // vertical orientation:
             if (m_props.m_peak >= 0) {
                 active_ratio = (static_cast<float>(m_props.m_peak) / max);
-                active_pos = static_cast<int>(h * active_ratio);
                 CRect peakrect(clientRect);
                 peakrect.top = static_cast<int>(active_ratio * h);
                 peakrect.bottom = peakrect.top + 2;

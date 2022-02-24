@@ -66,9 +66,6 @@
     <ClInclude Include="db_conversions.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="VisualManagerWindows10.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\win32-darkmode\win32-darkmode\DarkMode.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -90,9 +87,6 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="pch.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="VisualManagerWindows10.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PBar.cpp">

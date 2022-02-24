@@ -26,7 +26,7 @@ namespace my {
 
             while ((start = str.find_first_not_of(delim, end)) != std::string::npos) {
                 end = str.find(delim, start);
-                retval.emplace_back(std::move(str.substr(start, end - start)));
+                retval.emplace_back(str.substr(start, end - start));
             }
 
             // for the case when there are no delimiters:
