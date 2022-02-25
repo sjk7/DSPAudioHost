@@ -10,7 +10,7 @@
 #include <map>
 #include "PASettings.h"
 #include <fstream>
-#include "../Helpers/PBar.h"
+#include "PBar.h"
 #include "db_conversions.h"
 #include "DSPHost.h"
 
@@ -378,4 +378,6 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     void savePlugWindowPositions();
     BOOL restorePlugWindowPosition(const winamp_dsp::Plugin& plugin);
     bool myPreparePlay(portaudio_cpp::AudioFormat& myfmt);
+    virtual void OnCancel();
+    virtual void OnOK();
 };

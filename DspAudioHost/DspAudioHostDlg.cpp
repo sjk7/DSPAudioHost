@@ -66,10 +66,17 @@ CAboutDlg::CAboutDlg() : CDialogEx(IDD_ABOUTBOX) {}
 void CAboutDlg::DoDataExchange(CDataExchange* pDX) {
     CDialogEx::DoDataExchange(pDX);
 }
-
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
 BEGIN_MESSAGE_MAP(CAboutDlg, CDialogEx)
 
 END_MESSAGE_MAP()
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 // CDspAudioHostDlg dialog
 
@@ -185,6 +192,9 @@ void CDspAudioHostDlg::paSettingsLoad() {
 CDspAudioHostDlg::~CDspAudioHostDlg() {
 
     this->myfontStore(0, TRUE);
+    if (m_portaudio && m_portaudio->m_running) {
+        m_portaudio->Stop();
+    }
 }
 
 void CDspAudioHostDlg::DoDataExchange(CDataExchange* pDX) {
@@ -500,8 +510,10 @@ void CDspAudioHostDlg::myShowCurrentDevice(const portaudio_cpp::DeviceTypes forI
         pcbo = &this->cboInput;
     }
     auto idx = pcbo->FindStringExact(0, inName);
+#ifdef DEBUG
     const auto how_many = pcbo->GetCount();
     assert(idx >= 0 && idx < how_many);
+#endif
     pcbo->SetCurSel(idx);
 }
 int CDspAudioHostDlg::myPreparePortAudio(const portaudio_cpp::ChannelsType& chans,
@@ -772,7 +784,7 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     CStringW wtit(tit);
     SetWindowText(wtit);
 
-    NONCLIENTMETRICS metrics;
+    NONCLIENTMETRICS metrics{0};
     metrics.cbSize = sizeof(NONCLIENTMETRICS);
     ::SystemParametersInfo(
         SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &metrics, 0);
@@ -889,7 +901,13 @@ void CDspAudioHostDlg::OnSysCommand(UINT nID, LPARAM lParam) {
         CAboutDlg dlgAbout;
         dlgAbout.DoModal();
     } else {
-        CDialogEx::OnSysCommand(nID, lParam);
+        if ((nID & 0xFFF0) == SC_CLOSE) {
+            // if user clicked the "X"
+            EndDialog(IDOK); // Close the dialog with IDOK (or IDCANCEL)
+            //---end of code you have added
+        } else {
+            CDialog::OnSysCommand(nID, lParam);
+        }
     }
 }
 
@@ -1767,7 +1785,7 @@ void CDspAudioHostDlg::OnTimer(UINT_PTR nIDEvent) {
 bool CDspAudioHostDlg::myPreparePlay(portaudio_cpp::AudioFormat& fmt) {
 
     bool retval = true;
-    auto myfmt = fmt;
+    auto& myfmt = fmt;
     myfmt.forInOrOut = DeviceTypes::input;
     auto errcode = m_portaudio->isFormatSupported(myfmt);
     if (errcode != paFormatIsSupported) {
@@ -2182,4 +2200,18 @@ BOOL CDspAudioHostDlg::OnWndMsg(
 
 void CDspAudioHostDlg::OnBnClickedBtnConfigAudio() {
     ::WinExec("rundll32.exe shell32.dll,Control_RunDLL mmsys.cpl,,0", SW_SHOWNORMAL);
+}
+
+void CDspAudioHostDlg::OnCancel() {
+    // TODO: Add your specialized code here and/or call the base class
+
+    //__super::OnCancel();
+    // nope, don't want to close window on enter key, thanks
+}
+
+void CDspAudioHostDlg::OnOK() {
+    // TODO: Add your specialized code here and/or call the base class
+
+    // __super::OnOK();
+    // nope, don't want to close window on enter key, thanks
 }

@@ -68,11 +68,13 @@ class CPBar : public CWnd {
     public:
     CPBar();
     std::string m_name;
-
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
     BOOL Create(const std::string& name, HINSTANCE hInstance, DWORD dwExStyle,
         DWORD dwStyle, const RECT& rect,
         CWnd* pParentWindow, // pParentWindow is the plugin window itself
         UINT nID);
+#pragma clang diagnostic pop
     virtual ~CPBar();
 
     float darken_percent() const {
@@ -81,7 +83,7 @@ class CPBar : public CWnd {
     }
     void darken_back_colors(float percent) {
 
-        static auto cache = m_props.m_colors;
+        static auto& cache = m_props.m_colors;
         if ((int)percent == -1000) {
             m_props.m_colors = cache;
             return;

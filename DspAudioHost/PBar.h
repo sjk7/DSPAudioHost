@@ -69,11 +69,17 @@ class CPBar : public CWnd {
     public:
     CPBar();
     std::string m_name;
-
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Woverloaded-virtual"
+#endif
     BOOL Create(const std::string& name, HINSTANCE hInstance, DWORD dwExStyle,
         DWORD dwStyle, const RECT& rect,
         CWnd* pParentWindow, // pParentWindow is the plugin window itself
         UINT nID);
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
     virtual ~CPBar();
 
     float darken_percent() const {
@@ -82,7 +88,7 @@ class CPBar : public CWnd {
     }
     void darken_back_colors(float percent) {
 
-        static auto cache = m_props.m_colors;
+        static auto& cache = m_props.m_colors;
         if ((int)percent == -1000) {
             m_props.m_colors = cache;
             return;
@@ -461,7 +467,6 @@ class CPBar : public CWnd {
     void DrawPeak(CDC* pDC, const CRect& clientRect) {
 
         double active_ratio = 0;
-        int active_pos = 0;
         auto max = static_cast<double>(m_props.m_max);
         double w = static_cast<double>(clientRect.Width()) - 2;
         double h = static_cast<double>(clientRect.Height()) - 2;
@@ -476,7 +481,6 @@ class CPBar : public CWnd {
             // Draw the peak value:
             if (m_props.m_peak >= 0) {
                 active_ratio = (static_cast<float>(m_props.m_peak) / max);
-                active_pos = static_cast<int>(w * active_ratio);
                 CRect peakrect(clientRect);
                 peakrect.left = static_cast<int>(active_ratio * w);
                 peakrect.right = peakrect.left + 2;
@@ -488,7 +492,6 @@ class CPBar : public CWnd {
             // vertical orientation:
             if (m_props.m_peak >= 0) {
                 active_ratio = (static_cast<float>(m_props.m_peak) / max);
-                active_pos = static_cast<int>(h * active_ratio);
                 CRect peakrect(clientRect);
                 peakrect.top = static_cast<int>(active_ratio * h);
                 peakrect.bottom = peakrect.top + 2;

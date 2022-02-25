@@ -244,6 +244,7 @@ class Plugin {
     }
 
 #ifdef DEBUG
+#pragma warning(disable : 26800) // moved from, I know! I know!
     void test_move_assign_copy(std::string_view fp) {
         Plugin plug(false, fp);
         Plugin copied = plug;
@@ -273,6 +274,7 @@ class Plugin {
 
         assert(plug.m_data.hinstance() && !p.m_data.hinstance());
     }
+#pragma warning(default : 26800)
 
 #endif
 

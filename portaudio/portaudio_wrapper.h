@@ -197,7 +197,7 @@ static inline void timestring(bool show_millis, std::wstring& s, const uint64_t 
 
     s.clear();
 
-    static wchar_t buf[1024];
+    static wchar_t buf[1024] = {0};
     if (pbuf == nullptr) {
         pbuf = buf;
     }
@@ -407,7 +407,7 @@ struct PaDeviceInfoEx {
     supported_audio_t get_supported_audio_types(const DeviceTypes& type) const noexcept {
         supported_audio_t& ret = supported_audio_types;
         ret.clear();
-        supported_audio_t tmp;
+        supported_audio_t tmp; //-V808
         using std::begin, std::end;
 
         if (type == DeviceTypes::input) {
@@ -506,7 +506,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
 
     // could be index 0 for input, index 1 for output. But currently they are always the
     // same, as implemented.
-    const auto currentFormats(
+    const auto& currentFormats(
         DeviceTypes deviceType = DeviceTypes::input) const noexcept {
         const auto idx = static_cast<int>(deviceType);
         return m_currentFormats[idx];
@@ -537,7 +537,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
     };
 
     info_t info() const {
-        info_t ret;
+        info_t ret{};
         ret.api_name = m_currentApi.name;
         ret.input_name = m_currentDevices[0].info.name;
         ret.output_name = m_currentDevices[1].info.name;
@@ -811,11 +811,11 @@ template <typename AUDIOCALLBACK> struct PortAudio {
 
     PaTime m_startTime{0};
 
-    const std::array<int, 2> channels() const noexcept { return m_channels; }
-    const SampleFormat sampleFormat() const noexcept {
+    const std::array<int, 2>& channels() const noexcept { return m_channels; }
+    SampleFormat sampleFormat() const noexcept {
         return SampleFormat(m_outputParams.sampleFormat);
     }
-    const auto bits() const noexcept {
+    auto bits() const noexcept {
         return SampleFormat(m_outputParams.sampleFormat).bits();
     }
 
@@ -946,8 +946,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         PaStreamFlags flags = prepareFlags();
 
         if (super_low_latency) {
-            ip.suggestedLatency = ip.suggestedLatency;
-            op.suggestedLatency = op.suggestedLatency;
+            ip.suggestedLatency = ip.suggestedLatency / 2;
+            op.suggestedLatency = op.suggestedLatency / 2;
         }
         m_sampleRate = samplerate;
 

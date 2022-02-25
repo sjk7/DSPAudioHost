@@ -2829,28 +2829,6 @@ static PaError StartStream(PaStream* s) {
                 stream->pDirectSoundOutputBuffer, 0, 0, DSBPLAY_LOOPING);
             DBUG(("PaHost_StartOutput: IDirectSoundBuffer_Play returned = 0x%X.\n", hr));
             if (hr != DS_OK) {
-
-                if (FACILITY_WINDOWS == HRESULT_FACILITY(hr)) hr = HRESULT_CODE(hr);
-                TCHAR* szErrMsg;
-
-                if (FormatMessage(
-                        FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM, NULL,
-                        hr, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&szErrMsg,
-                        0, NULL)
-                    != 0) {
-                    //_tprintf(TEXT("%s"), szErrMsg);
-                    LocalFree(szErrMsg);
-                } else {
-                    assert(0);
-                }
-                //_tprintf(
-                // TEXT("[Could not find a description for error # %#x.]\n"),
-                // hr);
-
-                HRESULT e = DSERR_ALLOCATED;
-                if (hr == e) {
-                    assert("ffs" == 0);
-                }
                 result = paUnanticipatedHostError;
                 PA_DS_SET_LAST_DIRECTSOUND_ERROR(hr);
                 goto error;

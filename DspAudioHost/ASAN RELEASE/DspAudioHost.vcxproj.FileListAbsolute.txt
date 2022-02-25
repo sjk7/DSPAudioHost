@@ -1,0 +1,2 @@
+U:\DSPAudio\DspAudioHost\ASAN RELEASE\DspAudioHost.exe
+U:\DSPAudio\DspAudioHost\ASAN RELEASE\portaudio_x86.dll

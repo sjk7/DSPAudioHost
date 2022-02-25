@@ -158,7 +158,7 @@ void deinterleave(int channels, int samples, Td* const* dest, Ts const* src) {
 // Convenience for a stereo pair of channels
 template <typename Td, typename Ts>
 void deinterleave(int samples, Td* left, Td* right, Ts const* src) {
-    Td* dest[2];
+    Td* dest[2] = {0};
     dest[0] = left;
     dest[1] = right;
     deinterleave(2, samples, dest, src);
@@ -250,7 +250,7 @@ void interleave(int channels, size_t samples, Td* dest, Ts const* const* src) {
 // Convenience for a stereo channel pair
 template <typename Td, typename Ts>
 void interleave(int samples, Td* dest, Ts const* left, Ts const* right) {
-    const Ts* src[2];
+    const Ts* src[2] = {0};
     src[0] = left;
     src[1] = right;
     interleave(2, samples, dest, src);

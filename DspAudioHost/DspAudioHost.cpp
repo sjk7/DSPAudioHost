@@ -17,10 +17,17 @@
 #endif
 
 // CDspAudioHostApp
-
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-local-typedef"
+#endif
 BEGIN_MESSAGE_MAP(CDspAudioHostApp, CWinApp)
 ON_COMMAND(ID_HELP, &CWinApp::OnHelp)
 END_MESSAGE_MAP()
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 // CDspAudioHostApp construction
 
@@ -55,8 +62,7 @@ BOOL CDspAudioHostApp::another_instance_running(const CString& mut_name) {
         MessageBoxW(NULL,
             L"Another instance is already running.\n\nIf you want to run more than one "
             L"instance, please copy the folder containing DSPAudioHost to a different "
-            L"location, and try "
-            L"running it from there.",
+            L"location.",
             L"DSPAudioHost: Another instance running", MB_OK | MB_ICONSTOP);
 
         return TRUE;
@@ -71,7 +77,7 @@ BOOL CDspAudioHostApp::InitInstance() {
     // InitCommonControlsEx() is required on Windows XP if an application
     // manifest specifies use of ComCtl32.dll version 6 or later to enable
     // visual styles.  Otherwise, any window creation will fail.
-    INITCOMMONCONTROLSEX InitCtrls;
+    INITCOMMONCONTROLSEX InitCtrls{0};
     InitCtrls.dwSize = sizeof(InitCtrls);
     // Set this to include all the common control classes you want to use
     // in your application.
