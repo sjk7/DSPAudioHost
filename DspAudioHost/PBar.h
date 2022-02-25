@@ -14,6 +14,16 @@ class CPBar : public CWnd {
     enum orientation_t { horizontal, vertical };
 
     public:
+#ifdef PBAR_PERF
+    struct perf {
+        DWORD last_time{0};
+        DWORD ntimes{0};
+        DWORD entered{0};
+        DWORD left{0};
+        DWORD time_in_func{0};
+    };
+    std::array<perf, 2> m_perf{0};
+#endif
     struct colors {
         colors(COLORREF back, COLORREF fore, int percent)
             : cb(back), cf(fore), m_color_pk(RGB(220, 220, 220)), pos(percent) {}
@@ -144,6 +154,7 @@ class CPBar : public CWnd {
 
     int double_buffered() const { return m_props.m_double_buffered; }
 
+    // NOTE: double buffering is not worthwhile on Windows 10: it's 20x slower!
     void double_buffered_set(const int buffered) { m_props.m_double_buffered = buffered; }
 
     void peak_hold_color_set(COLORREF color, bool refresh = false) {
@@ -224,6 +235,9 @@ class CPBar : public CWnd {
     protected:
     DECLARE_MESSAGE_MAP()
     afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
+    CDC memDC;
+    CBitmap memBitmap;
+    DWORD when_last_drawn;
 
     void Draw(CDC* pDC, CRect& clientRect) {
 
@@ -280,12 +294,20 @@ class CPBar : public CWnd {
         } else {
             active_pos = static_cast<int>((h - BorderWidth) * active_ratio);
             if (m_props.m_invert != 0) {
+                /*
                 HDC hdc = pDC->GetSafeHdc();
-                pDC->SetMapMode(
+                BOOL set = pDC->SetMapMode(
                     MM_ISOTROPIC); // I want the y-axis to go UP from the bottom
-                ::SetWindowExtEx(hdc, clientRect.Width(), clientRect.Height(), NULL);
-                ::SetViewportExtEx(hdc, clientRect.Width(), -clientRect.Height(), NULL);
-                ::SetViewportOrgEx(hdc, 0, clientRect.Height(), NULL);
+                ASSERT(set);
+                set = ::SetWindowExtEx(
+                    hdc, clientRect.Width(), clientRect.Height(), NULL);
+                ASSERT(set);
+                set = ::SetViewportExtEx(
+                    hdc, clientRect.Width(), -clientRect.Height(), NULL);
+                ASSERT(set);
+                set = ::SetViewportOrgEx(hdc, 0, clientRect.Height(), NULL);
+                ASSERT(set);
+                /*/
                 // *********************************************************************************************
                 // _Thanks_, MS. Another 2 hours of my life I won't get back. I just
                 // wanted to change the origin and the y axis direction! So now we know

@@ -4,12 +4,12 @@
 
 //
 
-// have to add Maximod path and #include stdafx this way, else Clang can't find stdafx!
-#include <pch.h>
+#include "pch.h"
 #ifdef RADIOCAST_DEFINED
 #include "RadioCast.h"
 #endif
 #include "PBar.h"
+#include <fstream>
 
 // CPBar
 
@@ -23,7 +23,36 @@ END_MESSAGE_MAP()
 
 CPBar::CPBar() = default;
 
-CPBar::~CPBar() = default;
+#ifdef PBAR_PERF
+void trace_perf(CPBar& p, CPBar::perf& perf) {
+    std::stringstream ss;
+    if (p.double_buffered()) {
+        ss << "----- Double-buffered results -----\n\n";
+    } else {
+        ss << "----- Non-buffered results -----\n\n";
+    }
+
+    ss << "Name: " << p.m_name << "\n";
+    ss << "nTimes: " << perf.ntimes << "\n";
+    ss << "Time in func: " << perf.time_in_func << "\n";
+
+    const auto s = ss.str();
+    std::fstream f(p.m_name, std::ios::out | std::ios::binary);
+    assert(f);
+    f.write(s.data(), s.size());
+    assert(f);
+    f.close();
+}
+#endif
+
+CPBar::~CPBar() {
+#ifdef PBAR_PERF
+    if (!double_buffered())
+        trace_perf(*this, m_perf[0]);
+    else
+        trace_perf(*this, m_perf[1]);
+#endif
+}
 std::string m_name;
 
 //=============================================================================
@@ -81,41 +110,80 @@ BOOL CPBar::Create(const std::string& name, HINSTANCE hInstance, DWORD dwExStyle
     return TRUE;
 }
 
+void prepare_invert(CPaintDC& dc, const CRect& rectClient) {
+    HDC hdc = dc.GetSafeHdc();
+    BOOL set = dc.SetMapMode(MM_ISOTROPIC); // I want the y-axis to go UP from the bottom
+    ASSERT(set);
+    set = ::SetWindowExtEx(hdc, rectClient.Width(), rectClient.Height(), NULL);
+    ASSERT(set);
+    set = ::SetViewportExtEx(hdc, rectClient.Width(), -rectClient.Height(), NULL);
+    ASSERT(set);
+    set = ::SetViewportOrgEx(hdc, 0, rectClient.Height(), NULL);
+    ASSERT(set);
+}
+
 // CPBar message handlers
 void CPBar::OnPaint() {
 
     {
 
         CRect rectClient;
-        CPaintDC dc(this); // device context for painting
-        CDC dcMem;
-
-        if (m_props.m_double_buffered != 0) {
-            if (dcMem.CreateCompatibleDC(&dc) == 0) {
-                ASSERT(FALSE);
-                return;
-            }
+        CPaintDC dc(this);
+        CBitmap* poldBitmap;
+        static auto constexpr MAX_UPDATE_MS = 25;
+#ifdef PBAR_PERF
+        if (!m_props.m_double_buffered) {
+            if (m_perf[0].last_time == 0) m_perf[0].last_time = timeGetTime();
+            m_perf[0].entered = timeGetTime();
+        } else {
+            if (m_perf[1].last_time == 0) m_perf[1].last_time = timeGetTime();
+            m_perf[1].entered = timeGetTime();
         }
+#endif
 
         GetClientRect(&rectClient);
+        if (m_props.m_invert) {
+            prepare_invert(dc, rectClient);
+        }
 
         if (m_props.m_double_buffered != 0) {
-            CBitmap bmpMem;
+            if (!memDC.m_hDC) memDC.CreateCompatibleDC(&dc);
 
-            bmpMem.CreateCompatibleBitmap(&dc, rectClient.Width(), rectClient.Height());
-            CBitmap* pOldBitmap = dcMem.SelectObject(&bmpMem);
+            if (!memBitmap.m_hObject) {
+                memBitmap.CreateCompatibleBitmap(
+                    &dc, rectClient.Width(), rectClient.Height());
+            }
 
-            Draw(&dcMem, rectClient);
+            poldBitmap = (CBitmap*)memDC.SelectObject(&memBitmap);
+            const auto since = timeGetTime() - when_last_drawn;
+            if (since >= MAX_UPDATE_MS) {
+                Draw(&memDC, rectClient);
+                when_last_drawn = timeGetTime();
+            }
 
             dc.BitBlt(
-                0, 0, rectClient.Width(), rectClient.Height(), &dcMem, 0, 0, SRCCOPY);
+                0, 0, rectClient.Width(), rectClient.Height(), &memDC, 0, 0, SRCCOPY);
 
-            if (pOldBitmap != nullptr) {
-                dcMem.SelectObject(pOldBitmap);
+            if (poldBitmap != nullptr) {
+                memDC.SelectObject(poldBitmap);
             }
+
         } else {
+
             Draw(&dc, rectClient);
         }
+#ifdef PBAR_PERF
+        if (!m_props.m_double_buffered) {
+            m_perf[0].left = timeGetTime();
+            m_perf[0].time_in_func += m_perf[0].left - m_perf[0].entered;
+            m_perf[0].ntimes++;
+        } else {
+
+            m_perf[1].left = timeGetTime();
+            m_perf[1].time_in_func += m_perf[1].left - m_perf[1].entered;
+            m_perf[1].ntimes++;
+        }
+#endif
     }
 }
 
