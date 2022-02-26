@@ -6,23 +6,87 @@
 #include <mmsystem.h> // for timeGetTime()
 #include <utility> // std::swap()
 #include <string>
+#include <chrono>
+#include <fstream>
+using namespace std::chrono;
 
 #define WM_VU_CLICKED WM_USER + 8000
+#define PBAR_PERF
 
 class CPBar : public CWnd {
     DECLARE_DYNAMIC(CPBar)
     enum orientation_t { horizontal, vertical };
 
+    void drawDoubleBufferedMFC(const CRect& rectClient, CPaintDC& dc);
+
     public:
 #ifdef PBAR_PERF
-    struct perf {
-        DWORD last_time{0};
-        DWORD ntimes{0};
-        DWORD entered{0};
-        DWORD left{0};
-        DWORD time_in_func{0};
+
+    class Timer {
+        public:
+        typedef high_resolution_clock Clock;
+        Timer() { start(); }
+
+        void start() { epoch = Clock::now(); }
+        Clock::duration time_elapsed() const { return Clock::now() - epoch; }
+
+        private:
+        Clock::time_point epoch;
     };
-    std::array<perf, 2> m_perf{0};
+
+    struct perf {
+        perf() = default;
+        perf(const perf&) = delete;
+        perf& operator=(const perf& rhs) = delete;
+
+        void trace_perf() {
+            std::stringstream ss;
+            if (m_double_buffered) {
+                ss << "----- Double-buffered results -----\n\n";
+            } else {
+                ss << "----- Non-buffered results -----\n\n";
+            }
+
+            ss << "Name: " << m_name << ".\n";
+            ss << "Drawing inverted image: " << inverted << ".\n";
+            ss << "nTimes: " << ntimes << ".\n";
+            const auto spent
+                = std::chrono::duration_cast<std::chrono::milliseconds>(time_in_func)
+                      .count();
+            ss << "Time spent in func: " << spent << ".\n";
+
+            ss << "Avg time in func: " << spent / ntimes << " ms.";
+
+            const auto s = ss.str();
+            auto name = m_name;
+            if (inverted) {
+                name += " inverted";
+            }
+            name += ".txt";
+            std::fstream f(name, std::ios::out | std::ios::binary);
+            assert(f);
+            f.write(s.data(), s.size());
+            assert(f);
+            f.close();
+        }
+        ~perf() { trace_perf(); }
+
+        double ntimes{0};
+        Timer::Clock::duration time_in_func{0};
+        std::string m_name;
+        int m_double_buffered{false};
+        int inverted{false};
+    };
+
+    struct perf_timer : Timer {
+        perf_timer(perf& p) : m_perf(p) {}
+        ~perf_timer() {
+            ++m_perf.ntimes;
+            m_perf.time_in_func += Timer::time_elapsed();
+        }
+        perf& m_perf;
+    };
+    perf m_perf{0};
 #endif
     struct colors {
         colors(COLORREF back, COLORREF fore, int percent)
@@ -149,13 +213,20 @@ class CPBar : public CWnd {
 
     void draw_inverted_set(int invert) {
         m_props.m_invert = invert;
+#ifdef PBAR_PERF
+        m_perf.inverted = invert;
+#endif
         Invalidate(0);
     }
 
     int double_buffered() const { return m_props.m_double_buffered; }
 
-    // NOTE: double buffering is not worthwhile on Windows 10: it's 20x slower!
-    void double_buffered_set(const int buffered) { m_props.m_double_buffered = buffered; }
+    void double_buffered_set(const int buffered) {
+        m_props.m_double_buffered = buffered;
+#ifdef PBAR_PERF
+        m_perf.m_double_buffered = buffered;
+#endif
+    }
 
     void peak_hold_color_set(COLORREF color, bool refresh = false) {
         m_props.m_peak_hold_color = color;
@@ -235,22 +306,95 @@ class CPBar : public CWnd {
     protected:
     DECLARE_MESSAGE_MAP()
     afx_msg void OnLButtonDown(UINT nFlags, CPoint point);
-    CDC memDC;
-    CBitmap memBitmap;
-    DWORD when_last_drawn;
+    virtual BOOL OnWndMsg(
+        UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) override {
+        switch (message) {
+            case WM_SIZE: {
+                UINT width = LOWORD(lParam);
+                UINT height = HIWORD(lParam);
+                CRect r;
+                GetClientRect(&r);
+                OnSize(wParam, width, height);
+                // fall through
+            }
+            default: return __super::OnWndMsg(message, wParam, lParam, pResult);
+        }
+    }
 
-    void Draw(CDC* pDC, CRect& clientRect) {
+    struct Memdc {
+        CPBar& pbar;
+        CDC memDC;
+        CRect m_rect;
+        CBitmap memBitmap;
+
+        CBitmap* oldBitmap{nullptr};
+
+        ~Memdc() { cleanup(); }
+        Memdc(CPBar& pb) : pbar(pb) {}
+
+        void resize(const CRect& rect, bool force = false) {
+            if (rect != m_rect && !force) {
+                return;
+            }
+            m_rect = rect;
+            cleanup();
+            if (!memDC.m_hDC) {
+                memDC.CreateCompatibleDC(pbar.GetDC());
+            }
+
+            if (!memBitmap.m_hObject) {
+                memBitmap.CreateCompatibleBitmap(
+                    pbar.GetDC(), rect.Width(), rect.Height());
+            }
+            oldBitmap = (CBitmap*)memDC.SelectObject(&memBitmap);
+        }
+
+        void cleanup() {
+            if (memDC.m_hDC) {
+                if (oldBitmap) {
+                    memDC.SelectObject(oldBitmap);
+                }
+                memDC.Detach();
+            }
+            if (memBitmap.m_hObject) {
+                memBitmap.Detach();
+            }
+        }
+        void drawDoubleBuffered(const CRect& rectClient, CPaintDC& dc) {
+
+            pbar.Draw(&memDC, rectClient);
+            dc.BitBlt(
+                0, 0, rectClient.Width(), rectClient.Height(), &memDC, 0, 0, SRCCOPY);
+        }
+    };
+
+    Memdc memDC;
+
+    inline CRect myGetClientRect() {
+        CRect r;
+        this->GetClientRect(&r);
+        return r;
+    }
+
+    afx_msg void OnSize(UINT nType, int cx, int cy) {
+        if (m_props.m_double_buffered) {
+            memDC.resize(myGetClientRect());
+        }
+        __super::OnSize(nType, cx, cy);
+    }
+
+    DWORD when_last_drawn{0};
+
+    void Draw(CDC* pDC, const CRect& clientRect) {
 
         CRect rect(clientRect);
 
         int BorderWidth = 2;
         CRect RectBorder(clientRect);
         if (m_benabled == 0) {
-            CRect merect{};
-            this->GetClientRect(&merect);
             m_props.m_value = 0;
             m_props.m_peak = 0;
-            pDC->FillSolidRect(&merect, RGB(50, 50, 50));
+            pDC->FillSolidRect(&clientRect, RGB(50, 50, 50));
             return;
         }
 
@@ -293,41 +437,6 @@ class CPBar : public CWnd {
             active_pos = static_cast<int>((w - BorderWidth) * active_ratio);
         } else {
             active_pos = static_cast<int>((h - BorderWidth) * active_ratio);
-            if (m_props.m_invert != 0) {
-                /*
-                HDC hdc = pDC->GetSafeHdc();
-                BOOL set = pDC->SetMapMode(
-                    MM_ISOTROPIC); // I want the y-axis to go UP from the bottom
-                ASSERT(set);
-                set = ::SetWindowExtEx(
-                    hdc, clientRect.Width(), clientRect.Height(), NULL);
-                ASSERT(set);
-                set = ::SetViewportExtEx(
-                    hdc, clientRect.Width(), -clientRect.Height(), NULL);
-                ASSERT(set);
-                set = ::SetViewportOrgEx(hdc, 0, clientRect.Height(), NULL);
-                ASSERT(set);
-                /*/
-                // *********************************************************************************************
-                // _Thanks_, MS. Another 2 hours of my life I won't get back. I just
-                // wanted to change the origin and the y axis direction! So now we know
-                // how to do it. I'm leaving this note here in case you need to do it
-                // again...
-                // *********************************************************************************************
-                /*/
-                For example, suppose you want a traditional one-quadrant virtual
-                coordinate system where (0, 0) is at the lower left corner of the client
-                area and the logical width and height ranges from 0 to 32,767. You want
-                the x and y units to have the same physical dimensions. Here's what you
-                need to do:
-
-                SetMapMode (hdc, MM_ISOTROPIC) ;
-                SetWindowExtEx (hdc, 32767, 32767, NULL) ;
-                SetViewportExtEx (hdc, cxClient, -cyClient, NULL) ;
-                SetViewportOrgEx (hdc, 0, cyClient, NULL) ;
-
-                /*/
-            }
         }
         auto color = static_cast<COLORREF>(-1);
 

@@ -67,7 +67,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     void settingsSavePlugins();
     void settingsGetPlugins(bool apply = false);
     winamp_dsp::Host m_winamp_host;
-    winamp_dsp::Plugin* myActivatePlug(winamp_dsp::Plugin* plug, bool addToUI = true);
+    winamp_dsp::Plugin* myActivatePlug(
+        winamp_dsp::Plugin* plug, bool addToUI = true, bool force_show = true);
     HWND FindPluginWindow(std::string_view desc);
     CBrush m_brush;
     CFont m_windows10Font;
@@ -309,8 +310,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     void showMeters();
     void portaudioStart();
 
-    void pbar_ctrl_create(
-        const std::string& name, const int idctrl, CPBar& pbar, int invert);
+    void pbar_ctrl_create(BOOL double_buffered, const std::string& name, const int idctrl,
+        CPBar& pbar, int invert);
     CComboBox cboAPI;
     CComboBox cboInput;
     CComboBox cboOutput;

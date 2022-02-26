@@ -2,6 +2,6 @@
 
 Name: Left Output.
 Drawing inverted image: 0.
-nTimes: 973.
-Time spent in func: 96.
-Avg time in func: 0.0986639 ms.
+nTimes: 715.
+Time spent in func: 74.
+Avg time in func: 0.103497 ms.
