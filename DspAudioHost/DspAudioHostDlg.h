@@ -37,6 +37,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     CDspAudioHostDlg(CWnd* pParent = nullptr); // standard constructor
     PASettings m_paSettings;
     void paSettingsSave();
+    CRect m_sizeRect;
+    void saveMyPosition();
     void paSettingsLoad();
     virtual ~CDspAudioHostDlg();
     void myInitDialog();
@@ -381,4 +383,6 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     bool myPreparePlay(portaudio_cpp::AudioFormat& myfmt);
     virtual void OnCancel();
     virtual void OnOK();
+
+    virtual void PreSubclassWindow();
 };

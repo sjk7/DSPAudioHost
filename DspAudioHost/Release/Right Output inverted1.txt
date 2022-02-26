@@ -1,0 +1,7 @@
+----- Non-buffered results -----
+
+Name: Right Output.
+Drawing inverted image: 1.
+nTimes: 105234.
+Time spent in func: 21594.
+Avg time in func: 0.2052 ms.

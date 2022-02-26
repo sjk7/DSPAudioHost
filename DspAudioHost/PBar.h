@@ -363,6 +363,11 @@ class CPBar : public CWnd {
         void drawDoubleBuffered(const CRect& rectClient, CPaintDC& dc) {
 
             pbar.Draw(&memDC, rectClient);
+
+            // dc.StretchBlt(0, 0, rectClient.Width(), rectClient.Height(), &memDC, 0,
+            //     rectClient.Height(), rectClient.Width(), -rectClient.Height(),
+            //     SRCCOPY);
+
             dc.BitBlt(
                 0, 0, rectClient.Width(), rectClient.Height(), &memDC, 0, 0, SRCCOPY);
         }
@@ -595,6 +600,17 @@ class CPBar : public CWnd {
         return timeZero * (exp(growthFactor));
     }
 
+    auto getPeakColorForPosition(const float pos) {
+        int mypos = 0;
+        for (const auto& c : m_props.m_colors) {
+            mypos += c.pos;
+            if (pos * 100 <= mypos) {
+                return c.cf;
+            }
+        }
+        return m_props.m_peak_hold_color;
+    }
+
     void DrawPeak(CDC* pDC, const CRect& clientRect) {
 
         double active_ratio = 0;
@@ -617,7 +633,8 @@ class CPBar : public CWnd {
                 peakrect.right = peakrect.left + 2;
                 peakrect.top += 1;
                 peakrect.bottom -= 1;
-                pDC->FillSolidRect(peakrect, m_props.m_peak_hold_color);
+                const auto clr = getPeakColorForPosition((float)active_ratio);
+                pDC->FillSolidRect(peakrect, clr);
             }
         } else {
             // vertical orientation:
@@ -629,8 +646,8 @@ class CPBar : public CWnd {
                 // the next 2 lines simply honour the border.
                 peakrect.left += 1;
                 peakrect.right -= 1;
-                // peakrect.top -= 1; peakrect.bottom -= 1;
-                pDC->FillSolidRect(peakrect, m_props.m_peak_hold_color);
+                const auto clr = getPeakColorForPosition((float)active_ratio);
+                pDC->FillSolidRect(peakrect, clr);
             }
         }
     }

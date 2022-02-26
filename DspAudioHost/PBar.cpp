@@ -115,16 +115,20 @@ void CPBar::OnPaint() {
 #endif
 
     GetClientRect(&rectClient);
-    if (m_props.m_invert) {
-        prepare_invert(dc.m_hDC, rectClient);
-    }
+
     const auto since = timeGetTime() - when_last_drawn;
 
     if (m_props.m_double_buffered != 0) {
         if (since >= MAX_UPDATE_MS) {
+            if (m_props.m_invert) {
+                prepare_invert(dc.m_hDC, rectClient);
+            }
             memDC.drawDoubleBuffered(rectClient, dc);
         }
     } else {
+        if (m_props.m_invert) {
+            prepare_invert(dc.m_hDC, rectClient);
+        }
         if (since >= MAX_UPDATE_MS) {
             Draw(&dc, rectClient);
         }

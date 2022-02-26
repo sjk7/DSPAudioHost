@@ -1,0 +1,7 @@
+----- Double-buffered results -----
+
+Name: Left Output.
+Drawing inverted image: 1.
+nTimes: 39463.
+Time spent in func: 4463.
+Avg time in func: 0.113093 ms.

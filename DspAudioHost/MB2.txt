@@ -1,0 +1,7 @@
+----- Non-buffered results -----
+
+Name: MB2.
+Drawing inverted image: 0.
+nTimes: 536.
+Time spent in func: 1.
+Avg time in func: 0.00186567 ms.

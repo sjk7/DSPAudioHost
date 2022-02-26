@@ -1,7 +1,7 @@
 ----- Non-buffered results -----
 
-Name: Left Input.
+Name: Left Out.
 Drawing inverted image: 1.
 nTimes: 536.
-Time spent in func: 3.
-Avg time in func: 0.00559701 ms.
+Time spent in func: 2.
+Avg time in func: 0.00373134 ms.

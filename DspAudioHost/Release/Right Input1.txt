@@ -2,6 +2,6 @@
 
 Name: Right Input.
 Drawing inverted image: 0.
-nTimes: 987.
-Time spent in func: 100.
-Avg time in func: 0.101317 ms.
+nTimes: 105234.
+Time spent in func: 10638.
+Avg time in func: 0.101089 ms.

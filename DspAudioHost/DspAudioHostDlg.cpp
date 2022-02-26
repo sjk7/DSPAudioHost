@@ -105,6 +105,15 @@ void CDspAudioHostDlg::paSettingsSave() {
     saveOutput();
 }
 
+void CDspAudioHostDlg::saveMyPosition() {
+    WINDOWPLACEMENT mypos{0};
+    mypos.length = sizeof(mypos);
+    if (GetWindowPlacement(&mypos)) {
+        theApp.WriteProfileBinary(
+            L"DSPHost_MainWindow", L"Position", (LPBYTE)&mypos, sizeof(mypos));
+    }
+}
+
 void CDspAudioHostDlg::paSettingsLoad() {
     assert(m_portaudio);
     assert(IsWindow(GetSafeHwnd()));
@@ -408,6 +417,7 @@ void CDspAudioHostDlg::afterCreatePortAudio() {
 
 void CDspAudioHostDlg::myInitDialog() {
     CCmdTarget::BeginWaitCursor();
+
     EnableWindow(FALSE);
 
     HRESULT themed = ::SetWindowTheme(listAvail.GetSafeHwnd(), L"explorer", nullptr);
@@ -452,6 +462,7 @@ void CDspAudioHostDlg::myInitDialog() {
     }
     SetTimer(1, 25, nullptr);
     SetForegroundWindow();
+    GetWindowRect(&m_sizeRect);
     CCmdTarget::EndWaitCursor();
 }
 
@@ -792,6 +803,7 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     tit += __TIME__;
     tit += " on: ";
     tit += __DATE__;
+    SetLayeredWindowAttributes(0, 255 * 1, LWA_ALPHA);
 
     CStringW wtit(tit);
     SetWindowText(wtit);
@@ -855,9 +867,11 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
 
     GetWindowPlacement(&orig);
     std::string s = GetCommandLineA();
+    GetWindowRect(&m_sizeRect);
+
     if (s.find("safemode") == std::string::npos) {
         if (theApp.GetProfileBinary(
-                L"DSPHost MainWindow", L"Position", &pPlacementBytes, &nSize)) {
+                L"DSPHost_MainWindow", L"Position", &pPlacementBytes, &nSize)) {
             ASSERT(pPlacementBytes != NULL);
             if (pPlacementBytes != NULL) {
                 ASSERT(nSize == sizeof(WINDOWPLACEMENT));
@@ -866,31 +880,32 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
                 }
                 delete[] pPlacementBytes;
                 wp.showCmd = 1;
-                // this->SetWindowPlacement(&wp);
+                this->SetWindowPlacement(&wp);
                 if (window_is_offscreen(m_hWnd)) {
-                    // SetWindowPlacement(&orig);
+                    SetWindowPlacement(&orig);
                 }
             }
         }
-
-    } else {
     }
+
+    GetWindowRect(&m_sizeRect);
 
     return TRUE; // return TRUE  unless you set the focus to a control
 }
 
 void CDspAudioHostDlg::setupMeters() {
     pbar_ctrl_create(TRUE, "Left Input", IDC_VU_IN_L, vuInL, TRUE);
-    pbar_ctrl_create(TRUE, "Right Input", IDC_VU_IN_R, vuInR, FALSE);
+    pbar_ctrl_create(TRUE, "Right Input", IDC_VU_IN_R, vuInR, TRUE);
 
-    pbar_ctrl_create(TRUE, "Left Output", IDC_VUOUTL, vuOutL, FALSE);
-    pbar_ctrl_create(FALSE, "Right Output", IDC_VU_OUT_R, vuOutR, TRUE);
+    pbar_ctrl_create(TRUE, "Left Output", IDC_VUOUTL, vuOutL, TRUE);
+    pbar_ctrl_create(TRUE, "Right Output", IDC_VU_OUT_R, vuOutR, TRUE);
 
     CPBar::colorvec_t cv;
     cv.emplace_back(
-        CPBar::colors(RGB(51, 34, 0), RGB(180, 131, 2), 85)); // off / on  colors
+        CPBar::colors(RGB(51, 34, 0), RGB(180, 131, 2), 70)); // off / on  colors
     cv.emplace_back(
-        CPBar::colors(RGB(81, 0, 0), RGB(220, 220, 0), 15)); // off / on colors
+        CPBar::colors(RGB(25, 50, 0), RGB(50, 150, 0), 25)); // off / on colors
+    cv.emplace_back(CPBar::colors(RGB(50, 50, 0), RGB(190, 190, 0), 5));
     vuOutL.colors_set(cv);
     vuOutR.colors_set(cv);
     vuOutL.peak_hold_color_set(RGB(250, 201, 40));
@@ -1222,12 +1237,7 @@ BOOL CDspAudioHostDlg::restorePlugWindowPosition(const winamp_dsp::Plugin& plug)
 
 void CDspAudioHostDlg::savePlugWindowPositions() {
 
-    WINDOWPLACEMENT mypos{0};
-    mypos.length = sizeof(mypos);
-    if (GetWindowPlacement(&mypos)) {
-        theApp.WriteProfileBinary(
-            L"DSPHost MainWindow", L"Position", (LPBYTE)&mypos, sizeof(mypos));
-    }
+    saveMyPosition();
 
     for (auto&& plug : m_winamp_host.activePlugins()) {
 
@@ -1942,20 +1952,19 @@ void CDspAudioHostDlg::OnBnClickedBtnStop() {
 HBRUSH CDspAudioHostDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor) {
 
     HBRUSH hbr = CDialog::OnCtlColor(pDC, pWnd, nCtlColor);
-    // this is how you stop flicker in a static text control.#
-    if (true) {
-        if (CTLCOLOR_STATIC == nCtlColor && pWnd == (CWnd*)&lblElapsedTime) {
-            if (NULL == m_brush.GetSafeHandle()) {
-                m_brush.CreateStockObject(NULL_BRUSH);
-            } else {
-                return m_brush;
-            }
-        } else {
+    // this is how you stop flicker in a static text control.
 
-            if (CTLCOLOR_STATIC == nCtlColor && pWnd == (CWnd*)&lblClip) {
-                static CBrush brush(RGB(200, 0, 0));
-                return brush;
-            }
+    if (CTLCOLOR_STATIC == nCtlColor && pWnd == (CWnd*)&lblElapsedTime) {
+        if (NULL == m_brush.GetSafeHandle()) {
+            m_brush.CreateStockObject(NULL_BRUSH);
+        } else {
+            return m_brush;
+        }
+    } else {
+
+        if (CTLCOLOR_STATIC == nCtlColor && pWnd == (CWnd*)&lblClip) {
+            static CBrush brush(RGB(200, 0, 0));
+            return brush;
         }
     }
 
@@ -2164,18 +2173,8 @@ void CDspAudioHostDlg::afterSamplerateChanged(bool fromUserClick) {
 }
 
 void CDspAudioHostDlg::OnSize(UINT nType, int cx, int cy) {
+
     __super::OnSize(nType, cx, cy);
-
-    /*/
-        The wParam contains the reason:
-
-        SIZE_MAXIMIZED The window has been maximized. SIZE_MINIMIZED The window has
-       been minimized. SIZE_RESTORED The window has been resized, but neither the
-       SIZE_MINIMIZED nor SIZE_MAXIMIZED value applies.
-        /*/
-    if (nType == SIZE_MINIMIZED) {
-        // restorePlugWindowPositions();
-    }
 }
 
 LRESULT CDspAudioHostDlg::OnThemeChanged() {
@@ -2206,6 +2205,39 @@ LRESULT CDspAudioHostDlg::OnThemeChanged() {
 BOOL CDspAudioHostDlg::OnWndMsg(
     UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) {
 
+    switch (message) {
+        case WM_SIZING: {
+            RECT* r = (RECT*)lParam;
+            *r = m_sizeRect;
+            break;
+        }
+        case WM_MOVING:
+        case WM_SIZE:
+        case WM_MOVE: {
+            GetWindowRect(&m_sizeRect);
+            if (m_portaudio_create_thread_state == 0) {
+                saveMyPosition();
+            } else {
+                // app setting up, wait!
+                TRACE("Waiting before saving window position\n");
+            }
+            break;
+        }
+
+        case WM_VU_CLICKED: {
+            const auto val = !vuInL.smooth();
+            vuInL.smooth_set(val);
+            vuInR.smooth_set(val);
+            vuOutL.smooth_set(val);
+            vuOutR.smooth_set(val);
+            return TRUE;
+            break;
+        }
+
+        default: {
+            return __super::OnWndMsg(message, wParam, lParam, pResult);
+        }
+    };
     return __super::OnWndMsg(message, wParam, lParam, pResult);
 }
 
@@ -2225,4 +2257,20 @@ void CDspAudioHostDlg::OnOK() {
 
     // __super::OnOK();
     // nope, don't want to close window on enter key, thanks
+}
+
+void CDspAudioHostDlg::PreSubclassWindow() {
+
+    if (m_hWnd != NULL) {
+        // we don't want the user to be able to resize us
+        LONG cs = GetWindowLong(m_hWnd, GWL_STYLE);
+
+        cs &= ~WS_EX_CLIENTEDGE;
+        cs &= (0xFFFFFFFF ^ WS_SIZEBOX);
+        cs |= WS_BORDER;
+        cs &= (0xFFFFFFFF ^ WS_MAXIMIZEBOX);
+
+        SetWindowLong(m_hWnd, GWL_STYLE, cs);
+    }
+    __super::PreSubclassWindow();
 }

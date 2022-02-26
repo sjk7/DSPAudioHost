@@ -964,8 +964,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             throw std::runtime_error(errInfo);
         }
 
-        m_env_input.Setup(m_sampleRate.m_value, 20.0, 1000.0);
-        m_env_output.Setup(m_sampleRate.m_value, 20.0, 1000.0);
+        m_env_input.Setup(m_sampleRate.m_value, 1.0, 1000.0);
+        m_env_output.Setup(m_sampleRate.m_value, 1.0, 1000.0);
 
         m_currentFormats[0]
             = AudioFormat{DeviceTypes::input, samplerate, sf, channels[0]};
