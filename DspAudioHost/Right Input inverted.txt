@@ -1,7 +1,7 @@
------ Non-buffered results -----
+----- Double-buffered results -----
 
 Name: Right Input.
 Drawing inverted image: 1.
-nTimes: 536.
-Time spent in func: 2.
-Avg time in func: 0.00373134 ms.
+nTimes: 115.
+Time spent in func: 14.
+Avg time in func: 0.121739 ms.

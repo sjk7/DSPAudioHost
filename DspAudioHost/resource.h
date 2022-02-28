@@ -38,6 +38,8 @@
 #define IDC_BTN_UP                      1013
 #define IDC_BTN_DOWN                    1014
 #define IDC_BTN_CONFIG_PLUG             1015
+#define IDC_LIST_AVAIL3                 1016
+#define IDC_LIST_AVAIL_VST              1016
 #define IDC_PIC_PATH                    1017
 #define IDC_STATIC_INFO                 1018
 #define IDC_STATIC_PAINFO               1019
@@ -56,6 +58,7 @@
 #define IDC_CLIP                        1030
 #define IDC_BUTTON1                     1031
 #define IDC_BTN_CONFIG_AUDIO            1031
+#define IDC_TAB1                        1032
 
 // Next default values for new objects
 // 
@@ -63,7 +66,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        150
 #define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1032
+#define _APS_NEXT_CONTROL_VALUE         1033
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

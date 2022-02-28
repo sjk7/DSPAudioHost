@@ -78,6 +78,30 @@
     <ClInclude Include="PBar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="VST.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="VSTRE.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helpers\vstsdk2.4\pluginterfaces\vst2.x\aeffect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helpers\vstsdk2.4\pluginterfaces\vst2.x\aeffectx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helpers\vstsdk2.4\pluginterfaces\vst2.x\vstfxstore.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helpers\vstsdk2.4\public.sdk\source\vst2.x\aeffeditor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helpers\vstsdk2.4\public.sdk\source\vst2.x\audioeffect.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Helpers\vstsdk2.4\public.sdk\source\vst2.x\audioeffectx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DspAudioHost.cpp">

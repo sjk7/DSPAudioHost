@@ -13,6 +13,7 @@
 #include "PBar.h"
 #include "db_conversions.h"
 #include "DSPHost.h"
+#include "VST.h"
 
 class CSortMFCListCtrl : public CMFCListCtrl
 
@@ -385,4 +386,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     virtual void OnOK();
 
     virtual void PreSubclassWindow();
+    CTabCtrl tabAvailPlugs;
+    void myTabSelChange(CTabCtrl& tab, int tabIndex);
+    CListCtrl lstAvailVST;
 };

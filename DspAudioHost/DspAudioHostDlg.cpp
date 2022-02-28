@@ -234,6 +234,8 @@ void CDspAudioHostDlg::DoDataExchange(CDataExchange* pDX) {
     DDX_Control(pDX, IDC_SLIDER_VOL_IN, sldVolIn);
     DDX_Control(pDX, IDC_CLIP, lblClip);
     DDX_Control(pDX, IDC_COMBO_SAMPLERATE, cboSampleRate);
+    DDX_Control(pDX, IDC_TAB1, tabAvailPlugs);
+    DDX_Control(pDX, IDC_LIST_AVAIL_VST, lstAvailVST);
 }
 enum class special_chars : wchar_t {
     leftArrow = 223,
@@ -424,6 +426,12 @@ void CDspAudioHostDlg::myInitDialog() {
     assert(themed == S_OK);
 
     themed = ::SetWindowTheme(listCur.GetSafeHwnd(), L"explorer", nullptr);
+    ::SetWindowTheme(lstAvailVST.GetSafeHwnd(), L"explorer", nullptr);
+    CRect lstrect;
+    listAvail.GetWindowRect(&lstrect);
+    ScreenToClient(lstrect);
+    lstAvailVST.MoveWindow(lstrect);
+
     assert(themed == S_OK);
     findAvailDSPs();
     showAvailDSPs();
@@ -573,10 +581,13 @@ void clear_cols(CListCtrl& list) {
 void CDspAudioHostDlg::showAvailDSPs() {
     const auto& dsps = m_winamp_host.plugins();
 
+    lstAvailVST.DeleteAllItems();
     listAvail.DeleteAllItems();
     clear_cols(listAvail);
     clear_cols(listCur);
+    clear_cols(lstAvailVST);
 
+    lstAvailVST.InsertColumn(0, L"Plugins available");
     listAvail.InsertColumn(0, L"Plugins available");
     listCur.InsertColumn(0, L"Active plugins");
     assert(listAvail.GetHeaderCtrl());
@@ -592,6 +603,7 @@ void CDspAudioHostDlg::showAvailDSPs() {
 
     listAvail.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
     listCur.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
+    lstAvailVST.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
     if (listAvail.GetItemCount() > 0) {
         listAvail.SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
     }
@@ -803,10 +815,15 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     tit += __TIME__;
     tit += " on: ";
     tit += __DATE__;
-    SetLayeredWindowAttributes(0, 255 * 1, LWA_ALPHA);
+
+    tabAvailPlugs.InsertItem(0, L"VST Plugins");
+    tabAvailPlugs.InsertItem(0, L"Winamp DSP Plugins");
+    tabAvailPlugs.SetCurSel(0);
 
     CStringW wtit(tit);
     SetWindowText(wtit);
+
+    vst::Plug myplug(this->GetSafeHwnd());
 
     NONCLIENTMETRICS metrics{0};
     metrics.cbSize = sizeof(NONCLIENTMETRICS);
@@ -2234,6 +2251,20 @@ BOOL CDspAudioHostDlg::OnWndMsg(
             break;
         }
 
+        case WM_NOTIFY: {
+            NMHDR* nmhdr = NULL;
+            nmhdr = (NMHDR*)lParam;
+            if (this->tabAvailPlugs.m_hWnd == nmhdr->hwndFrom) {
+
+                switch (nmhdr->code) {
+                    case TCN_SELCHANGE: {
+                        int sel = tabAvailPlugs.GetCurSel();
+                        myTabSelChange(tabAvailPlugs, sel);
+                    }
+                }
+            }
+        }
+
         default: {
             return __super::OnWndMsg(message, wParam, lParam, pResult);
         }
@@ -2273,4 +2304,14 @@ void CDspAudioHostDlg::PreSubclassWindow() {
         SetWindowLong(m_hWnd, GWL_STYLE, cs);
     }
     __super::PreSubclassWindow();
+}
+
+void CDspAudioHostDlg::myTabSelChange(CTabCtrl& tab, int tabIndex) {
+    if (tabIndex == 0) {
+        listAvail.ShowWindow(TRUE);
+        lstAvailVST.ShowWindow(FALSE);
+    } else {
+        listAvail.ShowWindow(FALSE);
+        lstAvailVST.ShowWindow(TRUE);
+    }
 }

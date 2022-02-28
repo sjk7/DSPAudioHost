@@ -128,7 +128,8 @@ class CPBar : public CWnd {
         int m_invert{0};
         int m_value_is_peak{0};
         COLORREF
-        m_color_bkg{0}; // background color for the control (what color the borders are)
+        m_color_bkg{RGB(
+            50, 50, 50)}; // background color for the control (what color the borders are)
         COLORREF m_peak_hold_color;
         colorvec_t m_colors;
         DWORD m_peak_when{0};
