@@ -102,6 +102,12 @@
     <ClInclude Include="..\Helpers\vstsdk2.4\public.sdk\source\vst2.x\audioeffectx.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="PropPage.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="PropSheet.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DspAudioHost.cpp">
@@ -114,6 +120,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="PBar.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PropPage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PropSheet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

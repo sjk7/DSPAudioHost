@@ -39,7 +39,7 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
-    <UseOfMfc>Dynamic</UseOfMfc>
+    <UseOfMfc>Static</UseOfMfc>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <EnableASAN>false</EnableASAN>
   </PropertyGroup>
@@ -145,7 +145,7 @@
       <AdditionalIncludeDirectories>U:\DSPAudio\Helpers\vstsdk2.4;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <WholeProgramOptimization>false</WholeProgramOptimization>
       <DebugInformationFormat>EditAndContinue</DebugInformationFormat>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -323,6 +323,8 @@
     <ClInclude Include="PASettings.h" />
     <ClInclude Include="PBar.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="PropPage.h" />
+    <ClInclude Include="PropSheet.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
     <ClInclude Include="VST.h" />
@@ -340,6 +342,8 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='ASAN RELEASE|x64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="PropPage.cpp" />
+    <ClCompile Include="PropSheet.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="DspAudioHost.rc" />

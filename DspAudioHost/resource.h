@@ -7,6 +7,8 @@
 #define IDD_ABOUTBOX                    100
 #define IDS_ABOUTBOX                    101
 #define IDD_DSPAUDIOHOST_DIALOG         102
+#define IDD_PROPPAGE_LARGE              107
+#define IDD_MYPROPPAGE                  107
 #define IDI_ICON_SETTINGS               132
 #define IDI_ICON1                       133
 #define IDI_ICON_REFRESH                133
@@ -20,6 +22,7 @@
 #define IDI_ICON_PRETTYPLAY             147
 #define IDI_FLAT_PLAY                   148
 #define IDI_FLAT_STOP                   149
+#define IDR_ACCELERATOR1                150
 #define IDC_COMBO_API                   1000
 #define IDC_COMBO_INPUT                 1001
 #define IDC_COMBO_OUTPUT                1002
@@ -38,7 +41,6 @@
 #define IDC_BTN_UP                      1013
 #define IDC_BTN_DOWN                    1014
 #define IDC_BTN_CONFIG_PLUG             1015
-#define IDC_LIST_AVAIL3                 1016
 #define IDC_LIST_AVAIL_VST              1016
 #define IDC_PIC_PATH                    1017
 #define IDC_STATIC_INFO                 1018
@@ -64,9 +66,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        150
-#define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1033
+#define _APS_NEXT_RESOURCE_VALUE        151
+#define _APS_NEXT_COMMAND_VALUE         32772
+#define _APS_NEXT_CONTROL_VALUE         1034
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

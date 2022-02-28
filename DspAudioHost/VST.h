@@ -1,6 +1,11 @@
 #pragma once
 // VST.h
+#ifndef VST_FORCE_DEPRECATED
+#define VST_FORCE_DEPRECATED 1
+#endif
+
 #include "../Helpers/vstsdk2.4/public.sdk/source/vst2.x/audioeffectx.h"
+#include "../Helpers/vstsdk2.4/pluginterfaces/vst2.x/aeffect.h"
 #include "../Helpers/vstsdk2.4/public.sdk/source/vst2.x/aeffeditor.h"
 #include <utility>
 #include <string>
@@ -52,23 +57,31 @@ static inline AEffect* loadPlugin(const char* vstPath) {
 
     vstPluginFuncPtr mainEntryPoint
         = (vstPluginFuncPtr)GetProcAddress(modulePtr, "VSTPluginMain");
+
+    if (!mainEntryPoint) {
+        // plugs used to use 'main' before 'VSTPluginMain' was mandated. FFS!
+        mainEntryPoint = (vstPluginFuncPtr)GetProcAddress(modulePtr, "main");
+    }
+    if (!mainEntryPoint) {
+        return nullptr;
+    }
     // Instantiate the plugin
     plugin = mainEntryPoint(hostCallback);
     return plugin;
 }
 
-static inline AEffect* configurePluginCallbacks(
-    AEffect* plugin, dispatcherFuncPtr* dispatcher) {
+static inline AEffect* configurePlugin(AEffect* plugin) {
     // Check plugin's magic number
     // If incorrect, then the file either was not loaded properly, is not a
     // real VST plugin, or is otherwise corrupt.
     if (plugin->magic != kEffectMagic) {
         TRACE("Plugin's magic number is bad\n");
+        ASSERT("Bad magic, not a VST 2.x plug" == nullptr);
         return nullptr;
     }
 
     // Create dispatcher handle
-    *dispatcher = (dispatcherFuncPtr)(plugin->dispatcher);
+    (dispatcherFuncPtr)(plugin->dispatcher);
 
     // Set up plugin callback functions
     plugin->getParameter = (getParameterFuncPtr)plugin->getParameter;
@@ -86,20 +99,19 @@ static inline void suspendPlugin(AEffect* plugin, dispatcherFuncPtr dispatcher) 
     dispatcher(plugin, effMainsChanged, 0, 0, NULL, 0.0f);
 }
 
-static inline void startPlugin(AEffect* plugin, dispatcherFuncPtr dispatcher) {
-    dispatcher(plugin, effOpen, 0, 0, NULL, 0.0f);
+static inline void startPlugin(AEffect* plugin) {
+    plugin->dispatcher(plugin, effOpen, 0, 0, NULL, 0.0f);
 
     // Set some default properties
     float sampleRate = 44100.0f;
-    dispatcher(plugin, effSetSampleRate, 0, 0, NULL, sampleRate);
+    plugin->dispatcher(plugin, effSetSampleRate, 0, 0, NULL, sampleRate);
     int blocksize = 512;
-    dispatcher(plugin, effSetBlockSize, 0, blocksize, NULL, 0.0f);
+    plugin->dispatcher(plugin, effSetBlockSize, 0, blocksize, NULL, 0.0f);
 
-    resumePlugin(plugin, dispatcher);
+    resumePlugin(plugin, plugin->dispatcher);
 }
 
 static inline auto currentPluginUniqueId = 77;
-static inline auto pluginIdString = "pluginidString";
 static inline VstTimeInfo vstTimeInfo{};
 static inline auto getSampleRate() {
     return 44100;
@@ -119,14 +131,207 @@ inline bool canPluginDo(
     return (dispatcher(plugin, effCanDo, 0, 0, (void*)canDoString, 0.0f) > 0);
 }
 
+inline std::string getEffectName(AEffect* effect) noexcept {
+
+    char ceffname[kVstMaxEffectNameLen] = "";
+    int ret = effect->dispatcher(effect, effGetEffectName, 0, 0, ceffname, 0.0f);
+    if (ret) {
+        return std::string(ceffname);
+    }
+
+    return std::string();
+}
+
+static inline float** inputs;
+static inline float** outputs;
+static inline size_t numChannels = 2;
+static inline size_t blocksize = 8;
+
+static inline void initializeIO() {
+    // inputs and outputs are assumed to be float** and are declared elsewhere,
+    // most likely the are fields owned by this class. numChannels and blocksize
+    // are also fields, both should be size_t (or unsigned int, if you prefer).
+    inputs = (float**)malloc(sizeof(float**) * numChannels);
+    outputs = (float**)malloc(sizeof(float**) * numChannels);
+    for (unsigned int channel = 0; channel < numChannels; channel++) {
+        inputs[channel] = (float*)malloc(sizeof(float*) * blocksize);
+        outputs[channel] = (float*)malloc(sizeof(float*) * blocksize);
+    }
+}
+static inline void silenceChannel(float** channelData, unsigned int nch, long numFrames) {
+    for (unsigned int channel = 0; channel < nch; ++channel) {
+        for (long frame = 0; frame < numFrames; ++frame) {
+            channelData[channel][frame] = 0.0f;
+        }
+    }
+}
+
+static inline void processAudio(
+    AEffect* plugin, float** ins, float** outs, long numFrames) {
+    // Always reset the output array before processing.
+    silenceChannel(outs, numChannels, numFrames);
+
+    // Note: If you are processing an instrument, you should probably zero
+    // out the input channels first to avoid any accidental noise. If you
+    // are processing an effect, you should probably zero the values in the
+    // output channels. See the silenceChannel() function below.
+    // However, if you are reading input data from file (or elsewhere), this
+    // step is not necessary.
+    silenceChannel(ins, numChannels, numFrames);
+
+    plugin->processReplacing(plugin, ins, outs, numFrames);
+}
+
+struct PlugData {
+    std::string m_filepath;
+    std::string m_description;
+};
+
+namespace vst {
+class Plug;
+namespace detail {
+    static inline Plug* g_current_plug{nullptr};
+    using plugs_by_effect_ptr_type = std::unordered_map<std::ptrdiff_t, Plug*>;
+    inline plugs_by_effect_ptr_type plug_map;
+
+} // namespace detail
+class Plug {
+    AEffect* m_effect; // MUST be first!
+
+    PlugData m_data;
+    std::string m_serr;
+    Plug() = default; // note it is private. And no, you may not call this one!
+    void addToMap() {
+        auto peff = (std::ptrdiff_t)m_effect;
+        detail::plug_map.insert({peff, this});
+    }
+    void removeFromMap() {
+        auto it = detail::plug_map.find((uintptr_t)m_effect);
+        assert(it != detail::plug_map.end());
+        detail::plug_map.erase(it);
+    }
+
+    public:
+    inline auto is_valid() const noexcept {
+        return m_effect && m_effect->magic == kEffectMagic;
+    }
+    std::string_view description() const noexcept { return m_data.m_description; }
+    static inline auto does_not_work
+        = "C:\\Program Files (x86)\\REAPER\\Plugins\\FX\\reagate.dll";
+    static inline auto dll_path
+        = "C:\\Users\\DevNVME\\Documents\\VSTPlugins\\reaxcomp-standalone.dll";
+    static inline auto dlll_path
+        = "C:\\Users\\DevNVME\\Documents\\VSTPlugins\\Auburn Sounds Graillon 2.dll";
+
+    CRect getUIRect() const noexcept {
+        assert(m_effect);
+        auto effect = m_effect;
+        ERect* rect{nullptr};
+        effect->dispatcher(effect, effEditGetRect, 0, 0, &rect, 0);
+        CRect myrect(rect->left, rect->top, rect->right, rect->bottom);
+        return myrect;
+    }
+
+    Plug(HWND hTab, HWND hTabControl, std::string_view filepath = dll_path) : Plug() {
+        detail::g_current_plug = this;
+        m_data.m_filepath = filepath;
+        m_data.m_description = filepath; // set as temporary so we know who we are in the
+                                         // callback, which my be called durn creation
+
+        m_effect = loadPlugin(filepath.data());
+        if (!m_effect) {
+            m_serr = "Failed to load plugin: ";
+            m_serr += filepath;
+            return;
+        }
+        m_data.m_description = getEffectName(m_effect);
+        addToMap();
+        detail::g_current_plug = nullptr;
+
+        configurePlugin(m_effect);
+        startPlugin(m_effect);
+        char paramName[256] = {0};
+        char paramLabel[256] = {0};
+        char paramDisplay[256] = {0};
+        auto effect = m_effect;
+        for (VstInt32 paramIndex = 0; paramIndex < effect->numParams; paramIndex++) {
+
+            effect->dispatcher(effect, effGetParamName, paramIndex, 0, paramName, 0);
+            effect->dispatcher(effect, effGetParamLabel, paramIndex, 0, paramLabel, 0);
+            effect->dispatcher(
+                effect, effGetParamDisplay, paramIndex, 0, paramDisplay, 0);
+            float value = effect->getParameter(effect, paramIndex);
+
+            TRACE("Param %03d: %s [%s %s] (normalized = %f)\n", paramIndex, paramName,
+                paramDisplay, paramLabel, value);
+        };
+
+        CRect myrect = getUIRect();
+        CRect siteRect;
+        // reaplugs always seem to return 400x300, or some too-small Rect: wtf?
+        static constexpr auto border_h = 250;
+        static constexpr auto border_w = 250;
+        ::GetClientRect(hTabControl, &siteRect);
+
+        ::SetWindowPos(hTabControl, 0, 0, 0, myrect.Width() + border_w,
+            myrect.Height() + border_h, SWP_NOMOVE);
+
+        effect->dispatcher(effect, effEditOpen, 0, 0, hTab, 0);
+        ::RedrawWindow(hTabControl, 0, 0, RDW_INVALIDATE);
+
+        TRACE("shown?\n");
+    }
+    Plug(const Plug& rhs) {
+        using std::swap;
+        m_data = rhs.m_data;
+        assert(0);
+    }
+};
+
+namespace detail {
+
+    inline Plug* find_plug(AEffect* eff) {
+        auto it = plug_map.find((std::uintptr_t(eff)));
+        if (it != plug_map.end()) {
+            return it->second;
+        }
+        return nullptr;
+    }
+} // namespace detail
+
+} // namespace vst
+
 extern "C" {
 inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
     VstInt32 index, VstInt32 value, void* ptr, float opt) {
 
     VstIntPtr result = 0;
-    assert(0);
+    vst::Plug* plugptr = vst::detail::find_plug(effect);
+    if (!plugptr) {
+        plugptr = vst::detail::g_current_plug;
+    } else {
+        assert(plugptr);
+        bool ok = plugptr->is_valid();
+        ASSERT(ok);
+        if (!ok) return 0;
+    }
+
+    const auto name = plugptr->description();
+    const auto pluginIdString = name.data();
+
+    if (opcode < 0) {
+        TRACE("plugin sent some invalid (negative) value %d\n", opcode);
+        return 0;
+    }
 
     switch (opcode) {
+
+        case __audioMasterWantMidiDeprecated: {
+            TRACE(
+                "Plugin %s wants midi. Tuff Shit. This is not something we worry about\n",
+                name.data());
+            break;
+        }
         case audioMasterAutomate:
             // The plugin will call this if a parameter has changed via MIDI or the GUI,
             // so the host can update itself accordingly. We don't care about this (for
@@ -173,7 +378,7 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
                 // offline, anything the plugin calculates here will probably be wrong
                 // given the way we are running.  However, for real-time mode, this flag
                 // should be implemented in that case.
-                TRACE("Plugin '%s' asked for time in nanoseconds (unsupported)",
+                TRACE("Plugin '%s' asked for time in nanoseconds (unsupported)\n",
                     pluginIdString);
             }
 
@@ -260,7 +465,8 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
         }
 
         case audioMasterSizeWindow:
-            TRACE("Plugin '%s' asked us to resize window (unsupported)", pluginIdString);
+            TRACE(
+                "Plugin '%s' asked us to resize window (unsupported)\n", pluginIdString);
             break;
 
         case audioMasterGetSampleRate: result = (int)getSampleRate(); break;
@@ -288,27 +494,27 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
             break;
 
         case audioMasterOfflineStart:
-            TRACE("Plugin '%s' asked us to start offline processing (unsupported)",
+            TRACE("Plugin '%s' asked us to start offline processing (unsupported)\n",
                 pluginIdString);
             break;
 
         case audioMasterOfflineRead:
             logWarn(
-                "Plugin '%s' asked to read offline data (unsupported)", pluginIdString);
+                "Plugin '%s' asked to read offline data (unsupported)\n", pluginIdString);
             break;
 
         case audioMasterOfflineWrite:
-            logWarn(
-                "Plugin '%s' asked to write offline data (unsupported)", pluginIdString);
+            logWarn("Plugin '%s' asked to write offline data (unsupported)\n",
+                pluginIdString);
             break;
 
         case audioMasterOfflineGetCurrentPass:
-            logWarn("Plugin '%s' asked for current offline pass (unsupported)",
+            logWarn("Plugin '%s' asked for current offline pass (unsupported)\n",
                 pluginIdString);
             break;
 
         case audioMasterOfflineGetCurrentMetaPass:
-            logWarn("Plugin '%s' asked for current offline meta pass (unsupported)",
+            logWarn("Plugin '%s' asked for current offline meta pass (unsupported)\n",
                 pluginIdString);
             break;
 
@@ -332,7 +538,7 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
 
         case audioMasterVendorSpecific:
             logWarn("Plugin '%s' made a vendor specific call (unsupported). Arguments: "
-                    "%d, %d, %f",
+                    "%d, %d, %f\n",
                 pluginIdString, index, value, opt);
             break;
 
@@ -343,8 +549,8 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
         }
 
         case audioMasterGetDirectory:
-            logWarn(
-                "Plugin '%s' asked for directory pointer (unsupported)", pluginIdString);
+            logWarn("Plugin '%s' asked for directory pointer (unsupported)\n",
+                pluginIdString);
             break;
 
         case audioMasterUpdateDisplay:
@@ -352,27 +558,27 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
             break;
 
         case audioMasterBeginEdit:
-            logWarn("Plugin '%s' asked to begin parameter automation (unsupported)",
+            logWarn("Plugin '%s' asked to begin parameter automation (unsupported)\n",
                 pluginIdString);
             break;
 
         case audioMasterEndEdit:
-            logWarn("Plugin '%s' asked to end parameter automation (unsupported)",
+            logWarn("Plugin '%s' asked to end parameter automation (unsupported)\n",
                 pluginIdString);
             break;
 
         case audioMasterOpenFileSelector:
-            logWarn("Plugin '%s' asked us to open file selector (unsupported)",
+            logWarn("Plugin '%s' asked us to open file selector (unsupported)\n",
                 pluginIdString);
             break;
 
         case audioMasterCloseFileSelector:
-            logWarn("Plugin '%s' asked us to close file selector (unsupported)",
+            logWarn("Plugin '%s' asked us to close file selector (unsupported)\n",
                 pluginIdString);
             break;
 
         default:
-            logWarn("Plugin '%s' asked if host can do unknown opcode %d", pluginIdString,
+            logWarn("Plugin '%s' asked if host can do unknown opcode %d\n", name.data(),
                 opcode);
             break;
     }
@@ -381,95 +587,3 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
     return result;
 }
 }
-
-static inline float** inputs;
-static inline float** outputs;
-static inline size_t numChannels = 2;
-static inline size_t blocksize = 8;
-
-static inline void initializeIO() {
-    // inputs and outputs are assumed to be float** and are declared elsewhere,
-    // most likely the are fields owned by this class. numChannels and blocksize
-    // are also fields, both should be size_t (or unsigned int, if you prefer).
-    inputs = (float**)malloc(sizeof(float**) * numChannels);
-    outputs = (float**)malloc(sizeof(float**) * numChannels);
-    for (unsigned int channel = 0; channel < numChannels; channel++) {
-        inputs[channel] = (float*)malloc(sizeof(float*) * blocksize);
-        outputs[channel] = (float*)malloc(sizeof(float*) * blocksize);
-    }
-}
-static inline void silenceChannel(float** channelData, unsigned int nch, long numFrames) {
-    for (unsigned int channel = 0; channel < nch; ++channel) {
-        for (long frame = 0; frame < numFrames; ++frame) {
-            channelData[channel][frame] = 0.0f;
-        }
-    }
-}
-
-static inline void processAudio(
-    AEffect* plugin, float** ins, float** outs, long numFrames) {
-    // Always reset the output array before processing.
-    silenceChannel(outs, numChannels, numFrames);
-
-    // Note: If you are processing an instrument, you should probably zero
-    // out the input channels first to avoid any accidental noise. If you
-    // are processing an effect, you should probably zero the values in the
-    // output channels. See the silenceChannel() function below.
-    // However, if you are reading input data from file (or elsewhere), this
-    // step is not necessary.
-    silenceChannel(ins, numChannels, numFrames);
-
-    plugin->processReplacing(plugin, ins, outs, numFrames);
-}
-
-namespace vst {
-class Plug {
-
-    struct PlugData {
-
-        std::string m_filepath;
-        std::string m_description;
-        AEffect* m_plugin{nullptr};
-        dispatcherFuncPtr m_dispatcher{nullptr};
-    };
-    PlugData m_data;
-
-    public:
-    Plug(HWND h,
-        std::string_view filepath
-        = "C:\\Users\\DevNVME\\Documents\\VSTPlugins\\reagate-standalone.dll") {
-        m_data.m_filepath = filepath;
-        m_data.m_plugin = loadPlugin(filepath.data());
-        configurePluginCallbacks(m_data.m_plugin, &m_data.m_dispatcher);
-        startPlugin(m_data.m_plugin, m_data.m_dispatcher);
-        char paramName[256] = {0};
-        char paramLabel[256] = {0};
-        char paramDisplay[256] = {0};
-        auto effect = m_data.m_plugin;
-        for (VstInt32 paramIndex = 0; paramIndex < m_data.m_plugin->numParams;
-             paramIndex++) {
-            char paramName[256] = {0};
-            char paramLabel[256] = {0};
-            char paramDisplay[256] = {0};
-
-            effect->dispatcher(effect, effGetParamName, paramIndex, 0, paramName, 0);
-            effect->dispatcher(effect, effGetParamLabel, paramIndex, 0, paramLabel, 0);
-            effect->dispatcher(
-                effect, effGetParamDisplay, paramIndex, 0, paramDisplay, 0);
-            float value = effect->getParameter(effect, paramIndex);
-
-            printf("Param %03d: %s [%s %s] (normalized = %f)\n", paramIndex, paramName,
-                paramDisplay, paramLabel, value);
-        };
-
-        auto x = effect->dispatcher(effect, effEditOpen, 0, 0, h, 0);
-        TRACE("shown?\n");
-    }
-    Plug(const Plug& rhs) {
-        using std::swap;
-        m_data = rhs.m_data;
-        assert(0);
-    }
-};
-
-} // namespace vst

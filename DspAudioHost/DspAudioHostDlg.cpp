@@ -820,18 +820,32 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     tabAvailPlugs.InsertItem(0, L"Winamp DSP Plugins");
     tabAvailPlugs.SetCurSel(0);
 
-    CStringW wtit(tit);
-    SetWindowText(wtit);
-
-    vst::Plug myplug(this->GetSafeHwnd());
-
     NONCLIENTMETRICS metrics{0};
     metrics.cbSize = sizeof(NONCLIENTMETRICS);
     ::SystemParametersInfo(
         SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &metrics, 0);
     m_windows10Font.CreateFontIndirect(&metrics.lfMessageFont);
     SendMessageToDescendants(WM_SETFONT, (WPARAM)m_windows10Font.GetSafeHandle(), 0);
+    myPropSheet.setFontObject(&m_windows10Font);
 
+    CStringW wtit(tit);
+    SetWindowText(wtit);
+
+    // VST stuff: but it seems like a hell of a lot of work to save plugin settings, so
+    // stopped developing for now
+    /*/
+    BOOL ret = myPropSheet.Create(this, &m_windows10Font);
+    if (!ret) // Create failed.
+        AfxMessageBox(L"Error creating Dialog");
+    myPropSheet.ShowWindow(SW_SHOW);
+
+    vst::Plug* myplug = new vst::Plug(myPropSheet.mypage[0], myPropSheet.GetSafeHwnd());
+    const auto& desc = myplug->description();
+    CString wt(desc.data());
+    myPropSheet.SetPageTitle(0, wt);
+    myPropSheet.SetWindowTextW(L"VST Plugins Properties");
+    doEvents();
+    /*/
     sldVol.SetRange(0, 6000, TRUE);
     sldVol.SetTicFreq(50);
 
@@ -1409,6 +1423,10 @@ winamp_dsp::Plugin* CDspAudioHostDlg::myActivatePlug(
         }
 
         if (hwnd_found) {
+            // annoying me that plug windows are ALL shown if we are restoring the dialog
+            BOOL set = ::SetWindowLongPtr(
+                hwnd_found, GWL_HWNDPARENT, (long)::GetDesktopWindow());
+            ASSERT(set);
             restorePlugWindowPosition(activated);
             if (force_show) {
                 ::BringWindowToTop(hwnd_found);

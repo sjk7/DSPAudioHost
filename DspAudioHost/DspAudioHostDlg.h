@@ -14,6 +14,7 @@
 #include "db_conversions.h"
 #include "DSPHost.h"
 #include "VST.h"
+#include "PropSheet.h"
 
 class CSortMFCListCtrl : public CMFCListCtrl
 
@@ -37,6 +38,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     public:
     CDspAudioHostDlg(CWnd* pParent = nullptr); // standard constructor
     PASettings m_paSettings;
+    PropSheet myPropSheet;
     void paSettingsSave();
     CRect m_sizeRect;
     void saveMyPosition();
