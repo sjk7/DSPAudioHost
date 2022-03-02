@@ -38,6 +38,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     public:
     CDspAudioHostDlg(CWnd* pParent = nullptr); // standard constructor
     PASettings m_paSettings;
+    vst::Plug* myplug{nullptr};
     PropSheet myPropSheet;
     void paSettingsSave();
     CRect m_sizeRect;

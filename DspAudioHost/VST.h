@@ -7,6 +7,7 @@
 #include "../Helpers/vstsdk2.4/public.sdk/source/vst2.x/audioeffectx.h"
 #include "../Helpers/vstsdk2.4/pluginterfaces/vst2.x/aeffect.h"
 #include "../Helpers/vstsdk2.4/public.sdk/source/vst2.x/aeffeditor.h"
+#include "../Helpers/vstsdk2.4/pluginterfaces/vst2.x/vstfxstore.h"
 #include <utility>
 #include <string>
 #include <cassert>
@@ -14,6 +15,22 @@
 #ifndef logWarn
 #define logWarn TRACE
 #endif
+
+inline std::string parseFilename(
+    std::string_view filepath, bool include_extenstion = false) {
+    std::string ret;
+    const auto found = filepath.find_last_of("\\");
+    if (found != std::string::npos) {
+        ret = filepath.substr(found + 1);
+    }
+    if (!include_extenstion && !ret.empty()) {
+        const auto f = ret.find_last_of(".");
+        if (f != std::string::npos) {
+            ret = ret.substr(0, f);
+        }
+    }
+    return ret;
+}
 
 // C callbacks
 extern "C" {
@@ -50,8 +67,7 @@ static inline AEffect* loadPlugin(const char* vstPath) {
 
     auto modulePtr = LoadLibraryA(vstPath);
     if (modulePtr == NULL) {
-        printf(
-            "Failed trying to load VST from '%s', error %d\n", vstPath, GetLastError());
+        TRACE("Failed trying to load VST from '%s', error %d\n", vstPath, GetLastError());
         return NULL;
     }
 
@@ -135,11 +151,190 @@ inline std::string getEffectName(AEffect* effect) noexcept {
 
     char ceffname[kVstMaxEffectNameLen] = "";
     int ret = effect->dispatcher(effect, effGetEffectName, 0, 0, ceffname, 0.0f);
-    if (ret) {
+    if (ret == 0) {
         return std::string(ceffname);
     }
 
     return std::string();
+}
+
+inline int getChunk(AEffect* effect, void** data, const int is_preset = 0) noexcept {
+    ///< [ptr]: void** for chunk data address [index]: 0 for bank, 1 for program  @see
+    ///< AudioEffect::getChunk
+    int ret = effect->dispatcher(effect, effGetChunk, is_preset, 0, data, 0);
+    if (ret) {
+        *data = data;
+    }
+    return ret;
+}
+
+inline int setChunk(
+    AEffect* effect, std::string_view data, const int is_preset = 0) noexcept {
+    ///< [ptr]: chunk data [value]: byte size [index]: 0 for bank, 1 for program  @see
+    ///< AudioEffect::setChunk
+    int ret
+        = effect->dispatcher(effect, effSetChunk, 1, data.size(), (void*)data.data(), 0);
+    return ret;
+}
+
+static const size_t data_offset = ((size_t) & ((fxBank*)0)->content.data.chunk);
+
+#ifndef BIG_ENDIAN
+// custom endian swapper to avoid dependency on winsock
+// you could use htonl() if you're linking it anyway
+inline static unsigned fxbEndian(unsigned x) {
+    x = ((x & 0xff00ff00) >> 8) | ((x & 0xff00ff) << 8);
+    return (x >> 16) | (x << 16);
+}
+#else
+// on big-endian systems don't need to do anything
+static unsigned fxbEndian(unsigned x) {
+    return x;
+}
+#endif
+
+inline bool loadChunkData(std::string_view filepath, AEffect* plugin) {
+    bool ret = false;
+    FILE* pFile;
+    pFile = fopen(filepath.data(), "rb");
+    if (!pFile) {
+        return ret;
+    }
+    fseek(pFile, 0, SEEK_END);
+    long lSize = ftell(pFile);
+    rewind(pFile);
+    fxBank* header = (fxBank*)malloc(lSize);
+    fread(header, 1, (size_t)lSize, pFile);
+    fclose(pFile);
+
+    // you need to byteswap it again..
+    int numBytes = fxbEndian(header->byteSize);
+    { TRACE("numbytes load: %ld\n", numBytes); }
+
+    int numPrograms = fxbEndian(header->numPrograms);
+    TRACE("numPrograms: %ld\n", numPrograms);
+    // the size to pass to plugin is the content size
+    int chunkSize = fxbEndian(header->content.data.size);
+    // you need &-operator here to take the address
+    void* chunkDat = (void*)&(header->content.data.chunk);
+    plugin->dispatcher(plugin, effSetChunk, (int)0, chunkSize, chunkDat, 0.f);
+    free(header);
+    return true;
+}
+
+inline void saveChunkData(
+    std::string_view filepath, AEffect* plugin, int currentProgram) {
+    FILE* pFile;
+    pFile = fopen(filepath.data(), "wb");
+    void* chunk;
+    VstInt32 chunkSize = plugin->dispatcher(plugin, effGetChunk, 0, 0, &chunk, 0);
+
+    fxBank header;
+    // zero out by default "best practice"
+    // saves the trouble of filling every field
+    memset(&header, 0, sizeof(fxBank));
+
+    header.chunkMagic = fxbEndian('CcnK');
+    header.byteSize = fxbEndian(data_offset + chunkSize - 2 * sizeof(VstInt32));
+    // Opaque chunk is 'FBCh'! 'FxBk' is for "host saves parameters"
+    header.fxMagic = fxbEndian('FBCh');
+    header.version = fxbEndian(2);
+    header.fxID = fxbEndian(plugin->uniqueID);
+    header.fxVersion = fxbEndian(plugin->version);
+    header.numPrograms = fxbEndian(plugin->numPrograms);
+    // FIXME: probably want to store current program here?
+    header.currentProgram = currentProgram;
+    // future part is zeroed by the memset
+    // but data size-field is required
+    header.content.data.size = fxbEndian(chunkSize);
+
+    // need to convert back to host byte-order here
+    int a = fxbEndian(header.byteSize);
+    {
+        char buf[50];
+        sprintf(buf, "%d", a);
+        TRACE("size is: %s\n", buf);
+    }
+
+    fwrite(&header, data_offset, 1, pFile);
+    fwrite(chunk, chunkSize, 1, pFile);
+
+    fclose(pFile);
+}
+
+//-------------------------------------------------------------------------------------------------------
+inline void checkEffectProperties(AEffect* effect, std::vector<std::string>& presets) {
+    TRACE("HOST> Gathering properties...\n");
+
+    char effectName[256] = {0};
+    char vendorString[256] = {0};
+    char productString[256] = {0};
+
+    effect->dispatcher(effect, effGetEffectName, 0, 0, effectName, 0);
+    effect->dispatcher(effect, effGetVendorString, 0, 0, vendorString, 0);
+    effect->dispatcher(effect, effGetProductString, 0, 0, productString, 0);
+
+    TRACE("Name = %s\nVendor = %s\nProduct = %s\n\n", effectName, vendorString,
+        productString);
+
+    TRACE("numPrograms = %d\nnumParams = %d\nnumInputs = %d\nnumOutputs = %d\n\n",
+        effect->numPrograms, effect->numParams, effect->numInputs, effect->numOutputs);
+
+    presets.reserve(effect->numPrograms);
+    // Iterate programs... (what any sane person would call 'presets'. FFS.)
+    for (VstInt32 progIndex = 0; progIndex < effect->numPrograms; progIndex++) {
+        char progName[256] = {0};
+        if (!effect->dispatcher(
+                effect, effGetProgramNameIndexed, progIndex, 0, progName, 0)) {
+            effect->dispatcher(effect, effSetProgram, 0, progIndex, 0,
+                0); // Note: old program not restored here!
+            effect->dispatcher(effect, effGetProgramName, 0, 0, progName, 0);
+        }
+        if (strlen(progName) == 0)
+            presets.push_back("Preset " + std::to_string(progIndex + 1));
+        else
+            presets.push_back(progName);
+        TRACE("Program %03d: %s\n", progIndex, progName);
+    }
+
+    TRACE("\n");
+
+    // Iterate parameters...
+    for (VstInt32 paramIndex = 0; paramIndex < effect->numParams; paramIndex++) {
+        char paramName[256] = {0};
+        char paramLabel[256] = {0};
+        char paramDisplay[256] = {0};
+
+        effect->dispatcher(effect, effGetParamName, paramIndex, 0, paramName, 0);
+        effect->dispatcher(effect, effGetParamLabel, paramIndex, 0, paramLabel, 0);
+        effect->dispatcher(effect, effGetParamDisplay, paramIndex, 0, paramDisplay, 0);
+        float value = effect->getParameter(effect, paramIndex);
+
+        TRACE("Param %03d: %s [%s %s] (normalized = %f)\n", paramIndex, paramName,
+            paramDisplay, paramLabel, value);
+    }
+
+    TRACE("\n");
+
+    // Can-do nonsense...
+    static const char* canDos[]
+        = {"receiveVstEvents", "receiveVstMidiEvent", "midiProgramNames"};
+
+    for (VstInt32 canDoIndex = 0; canDoIndex < sizeof(canDos) / sizeof(canDos[0]);
+         canDoIndex++) {
+        TRACE("Can do %s... ", canDos[canDoIndex]);
+        VstInt32 result = (VstInt32)effect->dispatcher(
+            effect, effCanDo, 0, 0, (void*)canDos[canDoIndex], 0);
+        switch (result) {
+            case 0: TRACE("don't know\n"); break;
+            case 1: TRACE("yes\n"); break;
+            case -1: TRACE("definitely not!\n"); break;
+            default: TRACE("?????\n");
+        }
+        TRACE("\n");
+    }
+
+    TRACE("\n");
 }
 
 static inline float** inputs;
@@ -245,6 +440,9 @@ class Plug {
             return;
         }
         m_data.m_description = getEffectName(m_effect);
+        if (m_data.m_description.empty()) {
+            m_data.m_description = parseFilename(filepath);
+        }
         addToMap();
         detail::g_current_plug = nullptr;
 
@@ -266,26 +464,66 @@ class Plug {
                 paramDisplay, paramLabel, value);
         };
 
-        CRect myrect = getUIRect();
-        CRect siteRect;
+        effect->dispatcher(effect, effEditOpen, 0, 0, hTab, 0);
         // reaplugs always seem to return 400x300, or some too-small Rect: wtf?
-        static constexpr auto border_h = 250;
-        static constexpr auto border_w = 250;
+        static constexpr auto border_h = 150;
+        static constexpr auto border_w = 45;
+        CRect siteRect;
         ::GetClientRect(hTabControl, &siteRect);
 
-        ::SetWindowPos(hTabControl, 0, 0, 0, myrect.Width() + border_w,
-            myrect.Height() + border_h, SWP_NOMOVE);
+        CRect plugRect = getUIRect();
 
-        effect->dispatcher(effect, effEditOpen, 0, 0, hTab, 0);
+        ::SetWindowPos(hTabControl, 0, 0, 0, plugRect.Width() + border_w,
+            plugRect.Height() + border_h, SWP_NOMOVE);
+        // ::SetWindowPos(hTab, 0, 0, 0, plugRect.Width() + border_w,
+        //    plugRect.Height() + border_h, SWP_NOMOVE);
+
         ::RedrawWindow(hTabControl, 0, 0, RDW_INVALIDATE);
 
-        TRACE("shown?\n");
+        CRect plugRect2 = getUIRect();
+        // find pluginwindow:
+        int count = 0;
+        HWND child = hTab;
+        HWND plugEditor = 0;
+
+        for (child = ::GetWindow(child, GW_CHILD); child;
+             child = ::GetWindow(child, GW_HWNDNEXT)) {
+            count++;
+            char buf[MAX_PATH];
+            ::GetWindowTextA(child, buf, MAX_PATH);
+            CRect r;
+            ::GetWindowRect(child, &r);
+            TRACE("Got window text: %s\n", buf);
+            if (r.Width() == plugRect2.Width() && r.Height() == plugRect2.Height()) {
+                // is this needed? there seems to be only one child
+                plugEditor = child;
+                auto pt = r.TopLeft();
+                ScreenToClient(child, &pt);
+                pt.y += 50;
+                ::SetWindowPos(child, 0, 0, pt.y, 0, 0, SWP_NOSIZE);
+
+                break;
+            }
+        }
+        checkEffectProperties(m_effect, m_presets);
+
+        if (::loadChunkData(preset_path(), m_effect)) {
+            m_presets.clear();
+            checkEffectProperties(m_effect, m_presets);
+        }
     }
+
     Plug(const Plug& rhs) {
         using std::swap;
         m_data = rhs.m_data;
         assert(0);
     }
+
+    ~Plug() { ::saveChunkData(preset_path(), m_effect, m_currentPreset); }
+
+    int m_currentPreset{0};
+    std::vector<std::string> m_presets;
+    std::string preset_path() const noexcept { return m_data.m_description + ".fxb"; }
 };
 
 namespace detail {

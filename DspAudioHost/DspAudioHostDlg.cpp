@@ -833,19 +833,19 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
 
     // VST stuff: but it seems like a hell of a lot of work to save plugin settings, so
     // stopped developing for now
-    /*/
+
     BOOL ret = myPropSheet.Create(this, &m_windows10Font);
     if (!ret) // Create failed.
         AfxMessageBox(L"Error creating Dialog");
     myPropSheet.ShowWindow(SW_SHOW);
 
-    vst::Plug* myplug = new vst::Plug(myPropSheet.mypage[0], myPropSheet.GetSafeHwnd());
+    myplug = new vst::Plug(myPropSheet.mypage[0], myPropSheet.GetSafeHwnd());
     const auto& desc = myplug->description();
     CString wt(desc.data());
     myPropSheet.SetPageTitle(0, wt);
     myPropSheet.SetWindowTextW(L"VST Plugins Properties");
     doEvents();
-    /*/
+
     sldVol.SetRange(0, 6000, TRUE);
     sldVol.SetTicFreq(50);
 
@@ -961,6 +961,9 @@ void CDspAudioHostDlg::OnSysCommand(UINT nID, LPARAM lParam) {
     } else {
         if ((nID & 0xFFF0) == SC_CLOSE) {
             // if user clicked the "X"
+            if (myplug) {
+                delete myplug;
+            }
             OnClose();
             EndDialog(IDOK); // Close the dialog with IDOK (or IDCANCEL)
             //---end of code you have added
