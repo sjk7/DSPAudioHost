@@ -126,7 +126,7 @@ struct ChannelsType {
     }
 };
 
-inline PaStreamParameters prepareInputParams(const unsigned int deviceIndex,
+inline PaStreamParameters prepareInOutParams(const unsigned int deviceIndex,
     const SampleFormat& fmt, const PaTime suggestedLatency, const ChannelsType& nch) {
     PaStreamParameters ip = {0};
     ip.channelCount = nch.m_value;
@@ -134,17 +134,6 @@ inline PaStreamParameters prepareInputParams(const unsigned int deviceIndex,
     ip.sampleFormat = fmt.m_fmt;
 
     ip.suggestedLatency = suggestedLatency;
-    return ip;
-}
-
-inline PaStreamParameters prepareOutputParams(const unsigned int deviceIndex,
-    const SampleFormat& fmt, const PaTime suggestedLatency, const ChannelsType& nch) {
-    PaStreamParameters ip = {0};
-    ip.channelCount = nch.m_value;
-    ip.device = deviceIndex;
-    ip.sampleFormat = fmt.m_fmt;
-    ip.suggestedLatency = suggestedLatency;
-
     return ip;
 }
 
@@ -319,7 +308,7 @@ struct AudioFormat {
 
     static AudioFormat makeAudioFormat(const DeviceTypes& forInOrOut,
         const SampleFormat& sf, const SampleRateType& sr,
-        const ChannelsType chans = ChannelsType::stereo) {
+        const ChannelsType& chans = ChannelsType::stereo) {
         AudioFormat ret{forInOrOut, sr, sf, chans};
         return ret;
     }
@@ -388,7 +377,8 @@ struct PaDeviceInfoEx {
     PaError isFormatSupported(const AudioFormat& fmt) const noexcept {
         if (fmt.forInOrOut == DeviceTypes::input) {
             if (info.maxInputChannels == 0) {
-                assert("Querying an output device for INPUT formats? WTF!" == nullptr);
+                assert("Querying an output device for INPUT formats? WTF!"
+                    == nullptr); //-V547
             }
         } else {
             if (info.maxOutputChannels == 0) {
@@ -396,10 +386,10 @@ struct PaDeviceInfoEx {
             }
         }
         if (fmt.forInOrOut == DeviceTypes::input) {
-            auto ip = prepareInputParams(index, fmt.samplefmt, 0, fmt.channels);
+            auto ip = prepareInOutParams(index, fmt.samplefmt, 0, fmt.channels);
             return Pa_IsFormatSupported(&ip, nullptr, fmt.samplerate.m_value);
         } else {
-            auto op = prepareOutputParams(index, fmt.samplefmt, 0, fmt.channels);
+            auto op = prepareInOutParams(index, fmt.samplefmt, 0, fmt.channels);
             return Pa_IsFormatSupported(nullptr, &op, fmt.samplerate.m_value);
         }
     }
@@ -449,7 +439,7 @@ struct PaDeviceInfoEx {
     supported_audio_t get_supported_input(
         const SampleFormat& sf, const ChannelsType& nch) const noexcept {
         supported_audio_t ret;
-        auto ip = prepareInputParams(index, sf, 0, nch);
+        auto ip = prepareInOutParams(index, sf, 0, nch);
         for (const auto& sr : allowed_samplerates) {
             if (Pa_IsFormatSupported(&ip, nullptr, (double)sr) == paFormatIsSupported) {
                 ret.emplace_back(AudioFormat{DeviceTypes::input, sr, sf, nch});
@@ -460,7 +450,7 @@ struct PaDeviceInfoEx {
     supported_audio_t get_supported_output(
         const SampleFormat& sf, const ChannelsType& nch) const noexcept {
         supported_audio_t ret;
-        auto op = prepareOutputParams(index, sf, (PaTime)0, nch);
+        auto op = prepareInOutParams(index, sf, (PaTime)0, nch);
         for (const auto& sr : allowed_samplerates) {
             if (Pa_IsFormatSupported(nullptr, &op, (double)sr) == paFormatIsSupported) {
                 ret.emplace_back(AudioFormat{DeviceTypes::output, sr, sf, nch});
@@ -921,9 +911,9 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         return flags;
     }
 
-    PaStreamParameters m_inputParams;
-    PaStreamParameters m_outputParams;
-    SampleRateType m_sampleRate;
+    PaStreamParameters m_inputParams{0};
+    PaStreamParameters m_outputParams{0};
+    SampleRateType m_sampleRate{0};
 
     SampleRateType sampleRate() const noexcept { return m_sampleRate; }
 
@@ -933,13 +923,13 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         const bool super_low_latency = true) {
         if (m_stream) this->Close();
         PaStreamParameters& ip = m_inputParams;
-        ip = prepareInputParams(this->m_currentDevices[0].index, sf,
+        ip = prepareInOutParams(this->m_currentDevices[0].index, sf,
             m_currentDevices[0].info.defaultLowInputLatency,
             channels[static_cast<int>(DeviceTypes::input)]);
         ip.channelCount = channels[0].m_value;
 
         PaStreamParameters& op = m_outputParams;
-        op = prepareOutputParams(this->m_currentDevices[1].index, sf,
+        op = prepareInOutParams(this->m_currentDevices[1].index, sf,
             m_currentDevices[1].info.defaultLowOutputLatency,
             channels[static_cast<int>(DeviceTypes::output)]);
         op.channelCount = channels[1].m_value;
@@ -1083,7 +1073,7 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         return nullptr;
     }
 
-    const PaDeviceInfoEx* findDevice(const PortAudioGlobalIndex idx) const noexcept {
+    const PaDeviceInfoEx* findDevice(const PortAudioGlobalIndex& idx) const noexcept {
         const auto index = idx.m_value;
         assert(index > 0);
         for (auto&& d : m_devices) {
@@ -1175,14 +1165,15 @@ template <typename AUDIOCALLBACK> struct PortAudio {
 
     // throws
     void changeDevice(const PaDeviceInfoEx& di, const DeviceTypes& inOrOut) {
-        std::string_view n1(m_currentApi.name);
+
         auto devhost = Pa_GetHostApiInfo(di.info.hostApi);
         if (!devhost) {
 
             throw std::runtime_error("Cannot find host");
         }
-        std::string_view n2(devhost->name);
-        assert(n1 == n2); // must belong to current api
+
+        assert(std::string_view n1(m_currentApi.name);
+               == std::string_view n2(devhost->name)); // must belong to current api
         m_currentDevices[static_cast<int>(inOrOut)] = di;
         assert(!m_currentDevices[static_cast<int>(inOrOut)].extendedName.empty());
         if (inOrOut == DeviceTypes::input) {
@@ -1221,8 +1212,6 @@ template <typename AUDIOCALLBACK> struct PortAudio {
         if (m_errcode) {
             throw std::runtime_error("Failed to init PortAudio");
         }
-
-        if (m_errcode) return m_errcode;
         m_apis = enumApis();
         return m_errcode;
     }

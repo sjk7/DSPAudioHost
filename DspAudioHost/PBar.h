@@ -310,6 +310,7 @@ class CPBar : public CWnd {
     virtual BOOL OnWndMsg(
         UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) override {
         switch (message) {
+            [[fallthrough]];
             case WM_SIZE: {
                 UINT width = LOWORD(lParam);
                 UINT height = HIWORD(lParam);
@@ -318,6 +319,7 @@ class CPBar : public CWnd {
                 OnSize(wParam, width, height);
                 // fall through
             }
+                [[fallthrough]];
             default: return __super::OnWndMsg(message, wParam, lParam, pResult);
         }
     }

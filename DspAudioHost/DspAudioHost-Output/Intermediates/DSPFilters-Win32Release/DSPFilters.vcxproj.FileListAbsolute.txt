@@ -1,0 +1,2 @@
+U:\DSPAudio\DspAudioHost\DspAudioHost-Output\Products\Win32Release\DSPFilters.lib.lastcodeanalysissucceeded
+U:\DSPAudio\DspAudioHost\DspAudioHost-Output\Intermediates\DSPFilters-Win32Release\NativeCodeAnalysis.read.1.tlog

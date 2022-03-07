@@ -24,7 +24,7 @@ static inline BOOL CALLBACK find_plug_handle_proc(_In_ HWND hwnd, _In_ LPARAM lP
 
     std::wstring looking_for((wchar_t*)lParam);
     std::wstring this_one(MAX_PATH, L'\0');
-    assert(this_one.size() == MAX_PATH);
+
     ::GetWindowText(hwnd, this_one.data(), MAX_PATH);
     this_one.resize(this_one.find(L'\0'));
     if (this_one == looking_for) {
@@ -40,7 +40,7 @@ HWND find_plug_window(const std::wstring& txt) {
     return hwnd_found_plug_config;
 }
 
-HWND hwnd_found = 0;
+HWND hwnd_found = nullptr;
 
 // CAboutDlg dialog used for App About
 
@@ -145,7 +145,7 @@ void CDspAudioHostDlg::paSettingsLoad() {
             auto input = m_portaudio->findDevice(m_paSettings.input());
             if (!input) {
                 std::string e("Could not find input device, with name:\n");
-                e += m_paSettings.input().data();
+                e += m_paSettings.input();
                 throw std::runtime_error(e);
             }
             m_portaudio->changeDevice(input->index, portaudio_cpp::DeviceTypes::input);
@@ -157,7 +157,7 @@ void CDspAudioHostDlg::paSettingsLoad() {
             auto output = m_portaudio->findDevice(m_paSettings.output());
             if (!output) {
                 std::string e("Could not find output device, with name:\n");
-                e += m_paSettings.output().data();
+                e += m_paSettings.output();
                 throw std::runtime_error(e);
             }
             m_portaudio->changeDevice(output->index, portaudio_cpp::DeviceTypes::output);
@@ -248,7 +248,7 @@ enum class special_chars : wchar_t {
 void btnFontChar(CDspAudioHostDlg& dlg, CMFCButton& btn, special_chars c,
     int fontSize = 100, CString fontName = L"Wingdings") {
 
-    const UINT_PTR addr = (UINT_PTR)&btn;
+    const auto addr = (UINT_PTR)&btn;
     CFont* font = dlg.myfontStore(addr);
     if (font) {
         LOGFONT logFont;
@@ -593,8 +593,9 @@ void CDspAudioHostDlg::showAvailDSPs() {
     assert(listAvail.GetHeaderCtrl());
 
     for (const auto& d : dsps) {
-        if (!d.description().empty()) {
-            CString wDesc(d.description().data());
+        const auto& desc = d.description();
+        if (!desc.empty()) {
+            CString wDesc(desc.data());
             int cnt = listAvail.InsertItem(listAvail.GetItemCount(), wDesc);
             auto ptr = (DWORD_PTR)d.description().data();
             listAvail.SetItemData(cnt, ptr);
@@ -739,7 +740,12 @@ void CDspAudioHostDlg::myChangeAPI(CString apiName) {
 }
 
 #pragma warning(disable : 26454)
+// BEGIN_MESSAGE_MAP(CSortMFCListCtrl, CMFCListCtrl)
+// ON_NOTIFY_REFLECT_EX(NM_CUSTOMDRAW, &CSortMFCListCtrl::OnCustomDraw)
+// END_MESSAGE_MAP()
+
 BEGIN_MESSAGE_MAP(CDspAudioHostDlg, CDialogEx)
+
 ON_WM_SYSCOMMAND()
 ON_WM_PAINT()
 ON_WM_QUERYDRAGICON()
@@ -773,6 +779,7 @@ ON_CBN_SELCHANGE(IDC_COMBO_SAMPLERATE, &CDspAudioHostDlg::OnCbnSelchangeComboSam
 ON_WM_SIZE()
 ON_WM_THEMECHANGED()
 ON_BN_CLICKED(IDC_BTN_CONFIG_AUDIO, &CDspAudioHostDlg::OnBnClickedBtnConfigAudio)
+
 END_MESSAGE_MAP()
 #pragma warning(default : 26454)
 
@@ -932,6 +939,7 @@ void CDspAudioHostDlg::setupMeters() {
     pbar_ctrl_create(TRUE, "Right Output", IDC_VU_OUT_R, vuOutR, TRUE);
 
     CPBar::colorvec_t cv;
+    cv.reserve(3);
     cv.emplace_back(
         CPBar::colors(RGB(51, 34, 0), RGB(180, 131, 2), 70)); // off / on  colors
     cv.emplace_back(
@@ -961,12 +969,11 @@ void CDspAudioHostDlg::OnSysCommand(UINT nID, LPARAM lParam) {
     } else {
         if ((nID & 0xFFF0) == SC_CLOSE) {
             // if user clicked the "X"
-            if (myplug) {
-                delete myplug;
-            }
+
             OnClose();
             EndDialog(IDOK); // Close the dialog with IDOK (or IDCANCEL)
-            //---end of code you have added
+            delete myplug;
+
         } else {
             CDialog::OnSysCommand(nID, lParam);
         }
@@ -1104,11 +1111,11 @@ void CDspAudioHostDlg::OnBnClickedBtnPlugpath() {
     // note: the application class is derived from CWinAppEx
     CShellManager* pShellManager = theApp.GetShellManager();
     CString existing_folder;
-    const CString default_plug_folder(
-        L"C:\\Program Files (x86)\\AudioEnhance Sound Router\\plugins\\");
 
     lblPluginPath.GetWindowTextW(existing_folder);
     if (!PathFileExists(existing_folder)) {
+        const CString default_plug_folder(
+            L"C:\\Program Files (x86)\\AudioEnhance Sound Router\\plugins\\");
         existing_folder = default_plug_folder;
     }
     if (pShellManager->BrowseForFolder(
@@ -1236,11 +1243,11 @@ BOOL CDspAudioHostDlg::restorePlugWindowPosition(const winamp_dsp::Plugin& plug)
 
     HWND hwnd = find_plug_window(plug.configHandleWindowText());
     ASSERT(hwnd);
-    if (!hwnd) {
+    if (!IsWindow(hwnd)) {
         hwnd = FindPluginWindow(plug.description());
     }
 
-    if (!hwnd) return FALSE;
+    if (!IsWindow(hwnd)) return FALSE;
     WINDOWPLACEMENT wp{0};
     wp.length = sizeof(wp);
     CString wdesc(plug.description().data());
@@ -1290,8 +1297,9 @@ void CDspAudioHostDlg::savePlugWindowPositions() {
 
             BOOL got = ::GetWindowPlacement(hwnd, &wp);
             ASSERT(got);
-            CString wdesc(plug.description().data());
+
             if (got) {
+                CString wdesc(plug.description().data());
                 theApp.WriteProfileBinary(
                     L"PlugWindowPositions", wdesc, (LPBYTE)(&wp), sizeof(wp));
             }
@@ -1421,15 +1429,16 @@ winamp_dsp::Plugin* CDspAudioHostDlg::myActivatePlug(
         auto& activated = manageActivatePlug(*plug);
         hwnd_found = find_plug_window(activated.configHandleWindowText());
 
-        if (hwnd_found == nullptr) {
+        if (!IsWindow(hwnd_found)) {
             hwnd_found = FindPluginWindow(activated.description());
         }
 
-        if (hwnd_found) {
+        if (IsWindow(hwnd_found)) {
             // annoying me that plug windows are ALL shown if we are restoring the dialog
             BOOL set = ::SetWindowLongPtr(
                 hwnd_found, GWL_HWNDPARENT, (long)::GetDesktopWindow());
             ASSERT(set);
+            (void)set;
             restorePlugWindowPosition(activated);
             if (force_show) {
                 ::BringWindowToTop(hwnd_found);
@@ -1632,10 +1641,10 @@ void CDspAudioHostDlg::myCurListShowConfig(int idx) {
         } else {
             plug->showConfig();
             auto hWnd = find_plug_window(plug->configHandleWindowText());
-            if (hWnd == nullptr) {
+            if (!IsWindow(hWnd)) {
                 hWnd = FindPluginWindow(plug->description()); //-V1048
             }
-            if (hWnd != nullptr) {
+            if (IsWindow(hWnd)) {
                 centreWindowOnMe(hWnd, GetSafeHwnd());
             }
         }
@@ -2285,8 +2294,10 @@ BOOL CDspAudioHostDlg::OnWndMsg(
                 }
             }
         }
+            [[fallthrough]];
+        default:
 
-        default: {
+        {
             return __super::OnWndMsg(message, wParam, lParam, pResult);
         }
     };
@@ -2335,4 +2346,48 @@ void CDspAudioHostDlg::myTabSelChange(CTabCtrl& tab, int tabIndex) {
         listAvail.ShowWindow(FALSE);
         lstAvailVST.ShowWindow(TRUE);
     }
+}
+
+BOOL CDspAudioHostDlg::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult) {
+    // TODO: Add your specialized code here and/or call the base class
+    NMHDR* pNMHDR = (NMHDR*)lParam;
+    BOOL callParent = TRUE;
+
+    if (pNMHDR->hwndFrom == listAvail) {
+
+        static bool bHighlighted = TRUE;
+        LPNMLVCUSTOMDRAW lpLVCustomDraw = reinterpret_cast<LPNMLVCUSTOMDRAW>(pNMHDR);
+        NMCUSTOMDRAW nmcd = lpLVCustomDraw->nmcd;
+
+        *pResult = CDRF_DODEFAULT;
+        auto nmh = *pNMHDR;
+
+        switch (lpLVCustomDraw->nmcd.dwDrawStage) {
+            case CDDS_PREPAINT: *pResult = CDRF_NOTIFYITEMDRAW; break;
+            case CDDS_ITEMPREPAINT: {
+                int row = nmcd.dwItemSpec;
+                bHighlighted = row % 2 == 0;
+                if (bHighlighted) {
+                    lpLVCustomDraw->clrText = RGB(0, 100, 0);
+                    // EnableHighlighting(row, false);
+                    *pResult = CDRF_DODEFAULT | CDRF_NOTIFYPOSTPAINT;
+                    callParent = false;
+                }
+            } break;
+            case CDDS_ITEMPOSTPAINT:
+                if (bHighlighted) {
+                    // int row = nmcd.dwItemSpec;
+                    //  EnableHighlighting(row, true);
+                    callParent = false;
+                }
+                *pResult = CDRF_DODEFAULT;
+
+                break;
+            default: break;
+        }
+        if (callParent) {
+            return __super::OnNotify(wParam, lParam, pResult);
+        }
+    }
+    return callParent;
 }

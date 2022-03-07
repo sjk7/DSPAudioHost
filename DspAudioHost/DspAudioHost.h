@@ -31,7 +31,7 @@ class CDspAudioHostApp : public CWinAppEx {
     int ExitInstance() override;
     BOOL InitInstance() override;
     BOOL another_instance_running(const CString& mut_name);
-    HANDLE m_mutex = {0};
+    HANDLE m_mutex = nullptr;
     // Implementation
 
     DECLARE_MESSAGE_MAP()

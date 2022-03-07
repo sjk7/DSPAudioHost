@@ -2,10 +2,7 @@
 <Project>
   <ProjectOutputs>
     <ProjectOutput>
-      <FullPath>U:\DSPAudio\portaudio\msvc\Win32\Release\portaudio_x86.dll</FullPath>
-    </ProjectOutput>
-    <ProjectOutput>
-      <FullPath>U:\DSPAudio\DspAudioHost\Release\DspAudioHost.exe</FullPath>
+      <FullPath>U:\DSPAudio\portaudio\msvc\x64\ASAN32\portaudio.dll</FullPath>
     </ProjectOutput>
   </ProjectOutputs>
   <ContentFiles />

@@ -123,7 +123,7 @@ class Plugin {
         }
         msg += s;
 
-        m_data.errorString = msg;
+        m_data.errorString = std::move(msg);
         m_data.lastError = e;
     }
     void errorClear() {
@@ -151,6 +151,8 @@ class Plugin {
         assert(!filepath.empty());
         plug.m_data.parent = parent;
         plug.m_data.for_enumeration_only = for_enumeration_only;
+        TRACE("--------------------------------------------------------------------\n");
+        TRACE("Loading dsp plugin: %s\n", plug.m_data.filepath.data());
         plug.m_data.hinstance(::LoadLibraryA(plug.m_data.filepath.data()));
         if (!plug.m_data.hinstance() || (int)plug.m_data.hinstance() == -1) {
             plug.errorSet("LoadLibrary failed", GetLastError());
@@ -171,12 +173,12 @@ class Plugin {
 
         plug.m_data.header_set(headertype());
 
-        if (plug.m_data.header()->version > DSP_HDRVER) {
+        if (plug.m_data.header()->version > DSP_HDRVER) { //-V807
             plug.errorSet("Header version too great", -1);
             return;
         }
         plug.m_data.description = plug.m_data.header()->description;
-
+        TRACE("--------------------------------------------------------------------\n\n");
         if (for_enumeration_only) {
             // when we are just getting stuff to show it as an available plugin,
             // do not keep the dll "open", otherwise you cannot delete unwanted plugs
@@ -488,17 +490,16 @@ struct Host {
     Plugin& activatePlug(Plugin& plug) {
         Plugin activated;
         plug.activate(plug, activated);
-        m_activePlugins.push_back(std::move(activated));
-        return m_activePlugins.at(m_activePlugins.size() - 1);
+        return m_activePlugins.emplace_back(std::move(activated));
     }
 
 #pragma warning(disable : 4130)
     Plugin* findActivatedPlug(const unsigned int index) {
         if (index >= m_activePlugins.size()) {
-            assert("findActivatedPlug: index out of bounds" == nullptr); //-V547
+            assert("findActivatedPlug: index out of bounds" == nullptr);
             return nullptr;
         }
-        return &m_activePlugins.at(index);
+        return &m_activePlugins[index];
     }
 
     // note: do NOT access plug after this has been called!

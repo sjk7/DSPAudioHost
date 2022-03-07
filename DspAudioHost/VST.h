@@ -1,3 +1,8 @@
+// This is an open source non-commercial project. Dear PVS-Studio, please check it.
+
+// PVS-Studio Static Code Analyzer for C, C++, C#, and Java: http://www.viva64.com
+// DspAudioHost.cpp : Defines the class behaviors for the application.
+//
 #pragma once
 // VST.h
 #ifndef VST_FORCE_DEPRECATED
@@ -8,6 +13,8 @@
 #include "../Helpers/vstsdk2.4/pluginterfaces/vst2.x/aeffect.h"
 #include "../Helpers/vstsdk2.4/public.sdk/source/vst2.x/aeffeditor.h"
 #include "../Helpers/vstsdk2.4/pluginterfaces/vst2.x/vstfxstore.h"
+#include "../DSPFilters/shared/DSPFilters/include/DspFilters/Utilities.h" // for interleaving and de-interleaving
+#include "../portaudio/portaudio_wrapper.h" // some datatypes, like SampleRate, Channels, etc
 #include <utility>
 #include <string>
 #include <cassert>
@@ -24,7 +31,7 @@ inline std::string parseFilename(
         ret = filepath.substr(found + 1);
     }
     if (!include_extenstion && !ret.empty()) {
-        const auto f = ret.find_last_of(".");
+        const auto f = ret.find_last_of('.');
         if (f != std::string::npos) {
             ret = ret.substr(0, f);
         }
@@ -60,12 +67,12 @@ static inline void logDeprecated(const char* s, const char* s2) {
     str += s2;
     ::OutputDebugStringA(str.c_str());
 }
-static inline AEffect* loadPlugin(const char* vstPath) {
+static inline AEffect* loadPlugin(const char* vstPath, HMODULE& modulePtr) {
     AEffect* plugin = NULL;
 
     static HRESULT hrco = ::CoInitialize(NULL);
 
-    auto modulePtr = LoadLibraryA(vstPath);
+    modulePtr = LoadLibraryA(vstPath);
     if (modulePtr == NULL) {
         TRACE("Failed trying to load VST from '%s', error %d\n", vstPath, GetLastError());
         return NULL;
@@ -97,21 +104,23 @@ static inline AEffect* configurePlugin(AEffect* plugin) {
     }
 
     // Create dispatcher handle
-    (dispatcherFuncPtr)(plugin->dispatcher);
+    (dispatcherFuncPtr)(plugin->dispatcher); //-V607
 
     // Set up plugin callback functions
-    plugin->getParameter = (getParameterFuncPtr)plugin->getParameter;
-    plugin->processReplacing = (processFuncPtr)plugin->processReplacing;
-    plugin->setParameter = (setParameterFuncPtr)plugin->setParameter;
+    //    plugin->getParameter = (getParameterFuncPtr)plugin->getParameter;
+    // plugin->processReplacing = (processFuncPtr)plugin->processReplacing;
+    // plugin->setParameter = (setParameterFuncPtr)plugin->setParameter;
 
     return plugin;
 }
 
-static inline void resumePlugin(AEffect* plugin, dispatcherFuncPtr dispatcher) {
+static inline void resumePlugin(AEffect* plugin) {
+    dispatcherFuncPtr dispatcher = plugin->dispatcher;
     dispatcher(plugin, effMainsChanged, 0, 1, NULL, 0.0f);
 }
 
-static inline void suspendPlugin(AEffect* plugin, dispatcherFuncPtr dispatcher) {
+static inline void suspendPlugin(AEffect* plugin) {
+    dispatcherFuncPtr dispatcher = plugin->dispatcher;
     dispatcher(plugin, effMainsChanged, 0, 0, NULL, 0.0f);
 }
 
@@ -124,7 +133,7 @@ static inline void startPlugin(AEffect* plugin) {
     int blocksize = 512;
     plugin->dispatcher(plugin, effSetBlockSize, 0, blocksize, NULL, 0.0f);
 
-    resumePlugin(plugin, plugin->dispatcher);
+    resumePlugin(plugin);
 }
 
 static inline auto currentPluginUniqueId = 77;
@@ -142,8 +151,9 @@ static auto constexpr VERSION_MAJOR = 1;
 static auto constexpr VERSION_MINOR = 1;
 static auto constexpr VERSION_PATCH = 1;
 
-inline bool canPluginDo(
-    char* canDoString, AEffect* plugin, dispatcherFuncPtr dispatcher) {
+inline bool canPluginDo(char* canDoString, AEffect* plugin) {
+
+    dispatcherFuncPtr dispatcher = plugin->dispatcher;
     return (dispatcher(plugin, effCanDo, 0, 0, (void*)canDoString, 0.0f) > 0);
 }
 
@@ -178,6 +188,7 @@ inline int setChunk(
 }
 
 static const size_t data_offset = ((size_t) & ((fxBank*)0)->content.data.chunk);
+static const size_t data_offset_prog = ((size_t) & ((fxProgram*)0)->content.data.chunk);
 
 #ifndef BIG_ENDIAN
 // custom endian swapper to avoid dependency on winsock
@@ -204,6 +215,9 @@ inline bool loadChunkData(std::string_view filepath, AEffect* plugin) {
     long lSize = ftell(pFile);
     rewind(pFile);
     fxBank* header = (fxBank*)malloc(lSize);
+    if (!header) {
+        return false;
+    }
     fread(header, 1, (size_t)lSize, pFile);
     fclose(pFile);
 
@@ -222,10 +236,165 @@ inline bool loadChunkData(std::string_view filepath, AEffect* plugin) {
     return true;
 }
 
+inline bool loadChunkDataProg(std::string_view filepath, AEffect* plugin) {
+    bool ret = false;
+    FILE* pFile;
+    pFile = fopen(filepath.data(), "rb");
+    if (!pFile) {
+        return ret;
+    }
+    fseek(pFile, 0, SEEK_END);
+    long lSize = ftell(pFile);
+    rewind(pFile);
+    const auto sz = sizeof(fxProgram);
+    fxProgram* header
+        = (fxProgram*)malloc(lSize); // is this even legal? Well yes, since fxProgram has
+                                     // a flexible sized C array at the end!
+    if (!header) return false;
+    fread(header, 1, (size_t)lSize, pFile);
+    fclose(pFile);
+
+    // you need to byteswap it again..
+    int numBytes = fxbEndian(header->byteSize);
+    if (numBytes < 0) {
+        TRACE("Bad byte count when reading %s\n", filepath.data());
+        free(header);
+        return false;
+    }
+    { TRACE("numbytes load: %ld\n", numBytes); }
+
+    int id = fxbEndian(header->fxID);
+    TRACE("id: %ld\n", id);
+    // the size to pass to plugin is the content size
+    int chunkSize = fxbEndian(header->content.data.size);
+    // you need &-operator here to take the address
+    void* chunkDat = (void*)&(header->content.data.chunk);
+    plugin->dispatcher(plugin, effSetChunk, (int)1, chunkSize, chunkDat, 0.f);
+    free(header);
+    return true;
+}
+
+const size_t fxProgramHeaderSize = 56; // 7 * VstInt32 + 28 character program name
+const size_t fxBankHeaderSize = 156; // 8 * VstInt32 + 124 empty characters
+
+inline std::string getProgramName(AEffect* plugin) {
+    char buf[256] = {0};
+    plugin->dispatcher(plugin, effGetProgramName, 0, 0, buf, 0.f);
+    return std::string(buf);
+}
+
+union union32 {
+    float un_float;
+    int32_t un_int32;
+    char un_bytes[4];
+};
+
+// big endian (de)serialization routines (.FXP and .FXB files store all their data in big
+// endian)
+static inline void int32_to_bytes(int32_t i, char* bytes) {
+    union32 u;
+    u.un_int32 = i;
+#if BYTE_ORDER == LITTLE_ENDIAN
+    // swap endianess
+    bytes[0] = u.un_bytes[3];
+    bytes[1] = u.un_bytes[2];
+    bytes[2] = u.un_bytes[1];
+    bytes[3] = u.un_bytes[0];
+#else
+    bytes[0] = u.un_bytes[0];
+    bytes[1] = u.un_bytes[1];
+    bytes[2] = u.un_bytes[1];
+    bytes[3] = u.un_bytes[3];
+#endif
+}
+
+inline void writeProgramFile(std::string_view path, std::string_view buffer) {
+    std::ofstream file(path.data(), std::ios_base::binary | std::ios_base::trunc);
+    if (!file.is_open()) {
+        ASSERT(0);
+        return;
+    }
+    file.write(buffer.data(), buffer.size());
+}
+
+inline void saveChunkDataProgram(
+    std::string_view filepath, AEffect* plugin, int currentProgram) {
+
+    VstInt32 header[7]{0};
+    header[0] = cMagic;
+    header[3] = 1; // format version (always 1)
+    header[4] = plugin->uniqueID;
+    header[5] = plugin->version;
+    header[6] = plugin->numParams;
+    char prgName[28];
+    strncpy(prgName, getProgramName(plugin).c_str(), 27);
+    prgName[27] = '\0';
+
+    char* chunkData = nullptr;
+    VstInt32 chunkSize
+        = plugin->dispatcher(plugin, effGetChunk, 1, 0, (void**)&chunkData, 0.0f);
+    // totalSize: header size + 'size' field + actual chunk data
+    const size_t totalSize = fxProgramHeaderSize + 4 + chunkSize;
+    // byte size: totalSize - 'chunkMagic' - 'byteSize'
+    header[1] = totalSize - 8;
+    std::string buffer;
+    buffer.resize(totalSize);
+    char* bufptr = &buffer[0];
+    // serialize header
+    for (int i = 0; i < 7; ++i) {
+        int32_to_bytes(header[i], bufptr);
+        bufptr += 4;
+    }
+    // serialize program name
+    memcpy(bufptr, prgName, 28);
+    bufptr += 28;
+    // serialize chunk data
+    int32_to_bytes(chunkSize, bufptr); // size
+    memcpy(bufptr + 4, chunkData, chunkSize); // data
+    writeProgramFile(filepath, buffer);
+    /*/
+    void* chunk = nullptr;
+
+    VstInt32 chunkSize = plugin->dispatcher(plugin, effGetChunk, 1, 0, &chunk, 0.f);
+    chunkSize = 208; //
+    fxProgram header;
+    memset(&header, 0, sizeof(fxProgram));
+
+    header.chunkMagic = fxbEndian('CcnK');
+    header.byteSize = data_offset_prog + chunkSize - 2 * sizeof(VstInt32);
+    // Opaque chunk is 'FBCh'! 'FxBk' is for "host saves parameters"
+    // (meaning host would iterate all the float params ndvidually and save them)
+    header.fxMagic = fxbEndian('FBCh');
+    header.version = fxbEndian(2);
+    header.fxID = fxbEndian(plugin->uniqueID);
+    header.fxVersion = fxbEndian(plugin->version);
+
+    //  future part is zeroed by the memset
+    //  but data size-field is required
+    header.content.data.size = fxbEndian(chunkSize);
+    // params contains the length of the chunk as a VstInt32 value
+    header.content.params[0] = fxbEndian(chunkSize);
+    // need to convert back to host byte-order here
+    int a = fxbEndian(header.byteSize);
+    {
+        char buf[50];
+        sprintf(buf, "%d", a);
+        TRACE("size is: %s\n", buf);
+    }
+    FILE* pFile;
+    pFile = fopen(filepath.data(), "wb");
+
+    fwrite(&header, data_offset, 1, pFile);
+    fwrite(chunk, chunkSize, 1, pFile);
+
+    fclose(pFile);
+    /*/
+}
+
 inline void saveChunkData(
     std::string_view filepath, AEffect* plugin, int currentProgram) {
     FILE* pFile;
-    pFile = fopen(filepath.data(), "wb");
+
     void* chunk;
     VstInt32 chunkSize = plugin->dispatcher(plugin, effGetChunk, 0, 0, &chunk, 0);
 
@@ -237,29 +406,34 @@ inline void saveChunkData(
     header.chunkMagic = fxbEndian('CcnK');
     header.byteSize = fxbEndian(data_offset + chunkSize - 2 * sizeof(VstInt32));
     // Opaque chunk is 'FBCh'! 'FxBk' is for "host saves parameters"
+    // (meaning host would iterate all the float params ndvidually and save them)
     header.fxMagic = fxbEndian('FBCh');
     header.version = fxbEndian(2);
     header.fxID = fxbEndian(plugin->uniqueID);
     header.fxVersion = fxbEndian(plugin->version);
     header.numPrograms = fxbEndian(plugin->numPrograms);
-    // FIXME: probably want to store current program here?
+
     header.currentProgram = currentProgram;
     // future part is zeroed by the memset
     // but data size-field is required
     header.content.data.size = fxbEndian(chunkSize);
+    strcpy(header.content.programs[0].prgName, "ffs");
 
+#ifdef DEBUG
     // need to convert back to host byte-order here
     int a = fxbEndian(header.byteSize);
-    {
-        char buf[50];
-        sprintf(buf, "%d", a);
-        TRACE("size is: %s\n", buf);
+
+    { TRACE("size of header in saveChunkData() is: %d\n", a); }
+#endif
+    pFile = fopen(filepath.data(), "wb");
+    if (pFile) {
+        fwrite(&header, data_offset, 1, pFile);
+        fwrite(chunk, chunkSize, 1, pFile);
+
+        fclose(pFile);
+    } else {
+        throw "File cannot be opened";
     }
-
-    fwrite(&header, data_offset, 1, pFile);
-    fwrite(chunk, chunkSize, 1, pFile);
-
-    fclose(pFile);
 }
 
 //-------------------------------------------------------------------------------------------------------
@@ -290,8 +464,8 @@ inline void checkEffectProperties(AEffect* effect, std::vector<std::string>& pre
                 0); // Note: old program not restored here!
             effect->dispatcher(effect, effGetProgramName, 0, 0, progName, 0);
         }
-        if (strlen(progName) == 0)
-            presets.push_back("Preset " + std::to_string(progIndex + 1));
+        if (progName[0] == '\0')
+            presets.emplace_back("Preset " + std::to_string(progIndex + 1));
         else
             presets.push_back(progName);
         TRACE("Program %03d: %s\n", progIndex, progName);
@@ -317,8 +491,8 @@ inline void checkEffectProperties(AEffect* effect, std::vector<std::string>& pre
     TRACE("\n");
 
     // Can-do nonsense...
-    static const char* canDos[]
-        = {"receiveVstEvents", "receiveVstMidiEvent", "midiProgramNames"};
+    static const char* canDos[] = {"receiveVstEvents", "receiveVstMidiEvent",
+        "midiProgramNames", "processReplacing"};
 
     for (VstInt32 canDoIndex = 0; canDoIndex < sizeof(canDos) / sizeof(canDos[0]);
          canDoIndex++) {
@@ -337,22 +511,10 @@ inline void checkEffectProperties(AEffect* effect, std::vector<std::string>& pre
     TRACE("\n");
 }
 
-static inline float** inputs;
-static inline float** outputs;
 static inline size_t numChannels = 2;
-static inline size_t blocksize = 8;
+// the number of samples that will be sent to the VST for processing each time
+static inline size_t blocksize = 2048;
 
-static inline void initializeIO() {
-    // inputs and outputs are assumed to be float** and are declared elsewhere,
-    // most likely the are fields owned by this class. numChannels and blocksize
-    // are also fields, both should be size_t (or unsigned int, if you prefer).
-    inputs = (float**)malloc(sizeof(float**) * numChannels);
-    outputs = (float**)malloc(sizeof(float**) * numChannels);
-    for (unsigned int channel = 0; channel < numChannels; channel++) {
-        inputs[channel] = (float*)malloc(sizeof(float*) * blocksize);
-        outputs[channel] = (float*)malloc(sizeof(float*) * blocksize);
-    }
-}
 static inline void silenceChannel(float** channelData, unsigned int nch, long numFrames) {
     for (unsigned int channel = 0; channel < nch; ++channel) {
         for (long frame = 0; frame < numFrames; ++frame) {
@@ -364,7 +526,7 @@ static inline void silenceChannel(float** channelData, unsigned int nch, long nu
 static inline void processAudio(
     AEffect* plugin, float** ins, float** outs, long numFrames) {
     // Always reset the output array before processing.
-    silenceChannel(outs, numChannels, numFrames);
+    // silenceChannel(outs, numChannels, numFrames);
 
     // Note: If you are processing an instrument, you should probably zero
     // out the input channels first to avoid any accidental noise. If you
@@ -372,7 +534,7 @@ static inline void processAudio(
     // output channels. See the silenceChannel() function below.
     // However, if you are reading input data from file (or elsewhere), this
     // step is not necessary.
-    silenceChannel(ins, numChannels, numFrames);
+    // silenceChannel(outs, numChannels, numFrames);
 
     plugin->processReplacing(plugin, ins, outs, numFrames);
 }
@@ -391,11 +553,19 @@ namespace detail {
 
 } // namespace detail
 class Plug {
-    AEffect* m_effect; // MUST be first!
+    AEffect* m_effect{0};
 
     PlugData m_data;
     std::string m_serr;
     Plug() = default; // note it is private. And no, you may not call this one!
+    // Plug& operator=(const Plug& rhs) = default;
+    Plug& operator=(const Plug& other) {
+        assert(0); // allow this, or not?
+        if (other.audioDataSize) {
+            assert(0);
+        }
+        return *this;
+    }
     void addToMap() {
         auto peff = (std::ptrdiff_t)m_effect;
         detail::plug_map.insert({peff, this});
@@ -427,18 +597,21 @@ class Plug {
         return myrect;
     }
 
+    HMODULE m_hmod{0};
     Plug(HWND hTab, HWND hTabControl, std::string_view filepath = dll_path) : Plug() {
         detail::g_current_plug = this;
         m_data.m_filepath = filepath;
         m_data.m_description = filepath; // set as temporary so we know who we are in the
                                          // callback, which my be called durn creation
 
-        m_effect = loadPlugin(filepath.data());
+        m_effect = loadPlugin(filepath.data(), m_hmod);
         if (!m_effect) {
             m_serr = "Failed to load plugin: ";
             m_serr += filepath;
             return;
         }
+
+        m_effect->user = this;
         m_data.m_description = getEffectName(m_effect);
         if (m_data.m_description.empty()) {
             m_data.m_description = parseFilename(filepath);
@@ -501,16 +674,23 @@ class Plug {
                 ScreenToClient(child, &pt);
                 pt.y += 50;
                 ::SetWindowPos(child, 0, 0, pt.y, 0, 0, SWP_NOSIZE);
-
+                m_editorOpen = true;
                 break;
             }
         }
         checkEffectProperties(m_effect, m_presets);
 
-        if (::loadChunkData(preset_path(), m_effect)) {
-            m_presets.clear();
-            checkEffectProperties(m_effect, m_presets);
-        }
+        // if (::loadChunkData(preset_path(), m_effect)) {
+        //     m_presets.clear();
+        //     checkEffectProperties(m_effect, m_presets);
+        // }
+        loadChunkDataProg(preset_path_prog(), m_effect);
+
+        canPluginDo("ProcessReplacing", m_effect);
+    }
+
+    int dispatch(const int opCode, int value = 0, void* ptr = 0) {
+        return m_effect->dispatcher(m_effect, opCode, 0, value, ptr, 0.0f);
     }
 
     Plug(const Plug& rhs) {
@@ -518,12 +698,88 @@ class Plug {
         m_data = rhs.m_data;
         assert(0);
     }
+    bool m_editorOpen{false};
+    void cleanup() {
 
-    ~Plug() { ::saveChunkData(preset_path(), m_effect, m_currentPreset); }
+        if (m_effect) {
+            if (m_editorOpen) {
+                dispatch(effEditClose);
+                m_editorOpen = false;
+            }
+            dispatch(effStopProcess);
+            dispatch(effMainsChanged, 0, 0);
+            dispatch(effClose);
+        }
+        if (m_hmod) {
+            FreeLibrary(m_hmod);
+            ::CoUninitialize();
+            m_hmod = nullptr;
+        }
+
+        if (audioDataSize) {
+            delete[] planarData[0];
+            delete[] planarData[1];
+        }
+    }
+
+    ~Plug() {
+        ::saveChunkData(preset_path(), m_effect, m_currentPreset);
+        saveChunkDataProgram(preset_path_prog(), m_effect, m_currentPreset);
+        cleanup();
+    }
 
     int m_currentPreset{0};
     std::vector<std::string> m_presets;
     std::string preset_path() const noexcept { return m_data.m_description + ".fxb"; }
+    std::string preset_path_prog() const noexcept {
+        return m_data.m_description + ".fxp";
+    }
+
+    // interleave/deinterleave buffers
+    mutable std::vector<std::vector<float>> m_audio;
+    // interleave/deinterleave buffers
+    mutable std::vector<std::vector<float>> m_audio2;
+    mutable float* planarData[2]{0};
+    mutable int audioDataSize = 0;
+    mutable uint32_t ctr = 0;
+
+    inline int doDSP(float* const buf, const int frameCount,
+        const portaudio_cpp::SampleRateType& sampleRate = 44100, const int nch = 2,
+        const int bps = 32) const {
+        assert(bps == 32); // VSTs typically expect floating or double-precision samples.
+        assert(nch == 2);
+
+        if (ctr == 0) {
+            suspendPlugin(m_effect);
+            m_effect->dispatcher(
+                m_effect, effSetSampleRate, 0, 0, NULL, (float)sampleRate.m_value);
+            int myblocksize = frameCount;
+            m_effect->dispatcher(
+                m_effect, effSetBlockSize, 0, myblocksize * 2, NULL, 0.0f);
+
+            resumePlugin(m_effect);
+        }
+        ctr++;
+
+        const auto nfloats = frameCount * nch;
+        if (audioDataSize != frameCount) {
+            if (audioDataSize) {
+                delete[] planarData[0];
+                delete[] planarData[1];
+            }
+            planarData[0] = new float[frameCount];
+            planarData[1] = new float[frameCount];
+            audioDataSize = frameCount;
+        }
+
+        Dsp::deinterleave<float, float>(2, frameCount, planarData, buf);
+        // --> process the audio in plugin ...
+        processAudio(m_effect, planarData, planarData, frameCount);
+
+        Dsp::interleave(nch, frameCount, buf, planarData);
+
+        return 0;
+    }
 };
 
 namespace detail {
@@ -677,7 +933,8 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
             break;
 
         case audioMasterIOChanged: {
-            assert(0);
+            assert(0); //-V1037
+            break;
             /*/
             if (effect != NULL) {
                 PluginChain pluginChain = getPluginChain();
@@ -713,7 +970,7 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
 
         case audioMasterGetInputLatency:
             // Input latency is not used, and is always 0
-            result = 0;
+            result = 0; //-V1037
             break;
 
         case audioMasterGetOutputLatency:

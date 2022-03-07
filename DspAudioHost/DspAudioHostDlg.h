@@ -21,6 +21,7 @@ class CSortMFCListCtrl : public CMFCListCtrl
 {
 
     public:
+    // DECLARE_MESSAGE_MAP()
     virtual int OnCompareItems(LPARAM lParam1, LPARAM lParam2, int iColumn) {
 
         if (iColumn == 0) {
@@ -30,6 +31,8 @@ class CSortMFCListCtrl : public CMFCListCtrl
         }
         return 0;
     }
+
+    public:
 };
 
 // CDspAudioHostDlg dialog
@@ -242,12 +245,18 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
 
         // we always have a stereo buffer here:
         convertTo16bit((float* const)m_buf32in.data(), frameCount, 2, 32);
-
+        /*/
         for (auto& p : plugs) {
             p.doDSP((short* const)m_buf16.data(), frameCount, samplerate,
                 WINAMP_PLUG_CHANS, WINAMP_PLUG_BITDEPTH);
             mix(m_buf16, m_buf32, frameCount, nPlugs);
         }
+        /*/
+
+        myplug->doDSP(
+            m_buf32in.data(), frameCount, m_portaudio->sampleRate(), nch_in, 32);
+
+        m_buf32 = m_buf32in; // <--- TEST FOR VST: be sure to remove!
 
         if (nPlugs) {
             if (nch_in == nch_out) {
@@ -360,6 +369,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
     CSliderCtrl sldVol;
     afx_msg void OnNMCustomdrawSliderVol(NMHDR* pNMHDR, LRESULT* pResult);
+
     afx_msg void OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar);
     CButton chkForceMono;
     afx_msg void OnBnClickedChkForceMono();
@@ -392,4 +402,5 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     CTabCtrl tabAvailPlugs;
     void myTabSelChange(CTabCtrl& tab, int tabIndex);
     CListCtrl lstAvailVST;
+    virtual BOOL OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult);
 };

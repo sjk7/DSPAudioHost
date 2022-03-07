@@ -128,27 +128,56 @@ void deinterleave(int channels, int samples, Td* const* dest, Ts const* src) {
     assert(channels > 1);
 
     switch (channels) {
+        [[fallthrough]];
         case 2: {
             Td* l = dest[0];
             Td* r = dest[1];
             int n = (samples + 7) / 8;
             switch (samples % 8) {
+                [[fallthrough]];
                 case 0:
+
                     do {
                         *l++ = *src++;
                         *r++ = *src++;
-                        case 7: *l++ = *src++; *r++ = *src++;
-                        case 6: *l++ = *src++; *r++ = *src++;
-                        case 5: *l++ = *src++; *r++ = *src++;
-                        case 4: *l++ = *src++; *r++ = *src++;
-                        case 3: *l++ = *src++; *r++ = *src++;
-                        case 2: *l++ = *src++; *r++ = *src++;
+                        [[fallthrough]];
+                        case 7:
+
+                            *l++ = *src++;
+                            *r++ = *src++;
+                            [[fallthrough]];
+                        case 6:
+
+                            *l++ = *src++;
+                            *r++ = *src++;
+                            [[fallthrough]];
+                        case 5:
+
+                            *l++ = *src++;
+                            *r++ = *src++;
+                            [[fallthrough]];
+                        case 4:
+
+                            *l++ = *src++;
+                            *r++ = *src++;
+                            [[fallthrough]];
+                        case 3:
+
+                            *l++ = *src++;
+                            *r++ = *src++;
+                            [[fallthrough]];
+                        case 2:
+
+                            *l++ = *src++;
+                            *r++ = *src++;
+                            [[fallthrough]];
                         case 1: *l++ = *src++; *r++ = *src++;
                     } while (--n > 0);
             }
         } break;
-
+            [[fallthrough]];
         default: {
+
             for (int i = channels; --i >= 0;)
                 copy(samples, dest[i], src + i, 0, channels - 1);
         } break;
@@ -216,6 +245,7 @@ void interleave(int channels, size_t samples, Td* dest, Ts const* const* src) {
     if (samples == 0) return;
 
     switch (channels) {
+        [[fallthrough]];
         case 2: {
             const Ts* l = src[0];
             const Ts* r = src[1];
@@ -223,21 +253,41 @@ void interleave(int channels, size_t samples, Td* dest, Ts const* const* src) {
             // note that Duff's Device only works when samples>0
             int n = (samples + 7) / 8;
             switch (samples % 8) {
+                [[fallthrough]];
                 case 0:
                     do {
                         *dest++ = *l++;
                         *dest++ = *r++;
-                        case 7: *dest++ = *l++; *dest++ = *r++;
-                        case 6: *dest++ = *l++; *dest++ = *r++;
-                        case 5: *dest++ = *l++; *dest++ = *r++;
-                        case 4: *dest++ = *l++; *dest++ = *r++;
-                        case 3: *dest++ = *l++; *dest++ = *r++;
-                        case 2: *dest++ = *l++; *dest++ = *r++;
+                        [[fallthrough]];
+                        case 7:
+                            *dest++ = *l++;
+                            *dest++ = *r++;
+                            [[fallthrough]];
+                        case 6:
+                            *dest++ = *l++;
+                            *dest++ = *r++;
+                            [[fallthrough]];
+                        case 5:
+                            *dest++ = *l++;
+                            *dest++ = *r++;
+                            [[fallthrough]];
+                        case 4:
+                            *dest++ = *l++;
+                            *dest++ = *r++;
+                            [[fallthrough]];
+                        case 3:
+                            *dest++ = *l++;
+                            *dest++ = *r++;
+                            [[fallthrough]];
+                        case 2:
+                            *dest++ = *l++;
+                            *dest++ = *r++;
+                            [[fallthrough]];
                         case 1: *dest++ = *l++; *dest++ = *r++;
                     } while (--n > 0);
             }
         } break;
-
+            [[fallthrough]];
         default: {
             for (int i = channels; --i >= 0;)
                 copy(samples, dest + i, src[i], channels - 1, 0);

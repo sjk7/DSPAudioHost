@@ -528,7 +528,7 @@ const PaDeviceInfo* Pa_GetDeviceInfo(PaDeviceIndex device);
 
 /** Parameters for one direction (input or output) of a stream.
  */
-typedef struct PaStreamParameters {
+typedef struct PaStreamParameters { //-V802
     /** A valid device index in the range 0 to (Pa_GetDeviceCount()-1)
      specifying the device to be used or the special constant
      paUseHostApiSpecificDeviceSpecification which indicates that the actual
