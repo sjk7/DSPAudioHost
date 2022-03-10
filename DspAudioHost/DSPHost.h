@@ -10,6 +10,7 @@
 #include <vector>
 #include <cassert>
 #include <string_view>
+#include "plugins_base.h"
 
 // DSPHost.h
 
@@ -53,24 +54,17 @@ static inline int filter_msvc_exceptions(
         return EXCEPTION_CONTINUE_SEARCH;
     };
 }
-class Plugin {
+class Plugin : public plugins_base {
+
     friend struct PlugEnumerator;
     struct data {
-        std::string filepath;
 
-        std::string errorString;
-        std::string description;
-        int lastError = 0;
-        HWND parent = 0;
-        int init_result = -1; // zero or positive for activation success
         bool has_header() const noexcept { return m_header != nullptr; }
-        HMODULE hinstance() const noexcept { return hinst; }
-        void hinstance(HMODULE mod) { hinst = mod; }
         void header_set(winampDSPHeader* p) { m_header = p; }
         winampDSPHeader* header() { return m_header; }
         winampDSPModule* module() const noexcept { return m_module; }
         void module_set(winampDSPModule* p) { m_module = p; };
-        bool for_enumeration_only{true};
+
         void configHandleWindowTextSet(const std::wstring& s) {
             m_config_window_text = s;
         }
@@ -82,7 +76,6 @@ class Plugin {
         HWND configHandleWindowGet() const noexcept { return m_config_hwnd; }
 
         private:
-        HMODULE hinst = 0;
         winampDSPHeader* m_header = nullptr;
         winampDSPModule* m_module = nullptr;
         std::wstring m_config_window_text;
@@ -90,6 +83,8 @@ class Plugin {
     };
     data m_data;
 
+    // HMODULE hinstance() const noexcept { return plugins_base::hinstance(); }
+    bool has_header() const noexcept override { return m_data.has_header(); }
     void quitModule(winampDSPModule* mod) {
         assert(mod);
 
@@ -108,32 +103,13 @@ class Plugin {
         } __except (
             filter_msvc_exceptions(GetExceptionCode(), GetExceptionInformation())) {
             this->errorSet("Threw exception when Config() called", -1);
-            throw std::runtime_error(this->m_data.errorString);
+            throw std::runtime_error(this->errorString());
         }
-    }
-
-    void errorSet(std::string_view s, int e) {
-        std::string msg("Plugin at: ");
-        std::string p(this->filepath());
-        msg += p;
-        msg += "\n\n";
-        if (m_data.has_header()) {
-            msg += m_data.description;
-            msg += ":\n\n";
-        }
-        msg += s;
-
-        m_data.errorString = std::move(msg);
-        m_data.lastError = e;
-    }
-    void errorClear() {
-        m_data.errorString.clear();
-        m_data.lastError = 0;
     }
 
     static inline void create_guarded(
         const bool for_enumeration_only, Plugin& plug, HWND parent) {
-        assert(!plug.m_data.filepath.empty());
+        assert(!plug.filePath().empty());
         __try {
             _create(for_enumeration_only, plug, parent);
             return;
@@ -144,27 +120,28 @@ class Plugin {
         }
         return;
     }
+
     static inline void _create(
         bool for_enumeration_only, Plugin& plug, HWND parent = ::GetDesktopWindow()) {
 
-        std::string_view filepath = plug.m_data.filepath;
+        std::string_view filepath = plug.filePath();
         assert(!filepath.empty());
-        plug.m_data.parent = parent;
-        plug.m_data.for_enumeration_only = for_enumeration_only;
+        plug.m_base_data.parent = parent;
+        plug.m_base_data.for_enumeration_only = for_enumeration_only;
         TRACE("--------------------------------------------------------------------\n");
-        TRACE("Loading dsp plugin: %s\n", plug.m_data.filepath.data());
-        plug.m_data.hinstance(::LoadLibraryA(plug.m_data.filepath.data()));
-        if (!plug.m_data.hinstance() || (int)plug.m_data.hinstance() == -1) {
+        TRACE("Loading dsp plugin: %s\n", plug.m_base_data.filepath.data());
+        plug.hinstanceSet(::LoadLibraryA(plug.m_base_data.filepath.data()));
+        if (!plug.hinstance() || (int)plug.hinstance() == -1) {
             plug.errorSet("LoadLibrary failed", GetLastError());
             return;
         }
 
         auto headertype = (winampDSPGetHeaderType)GetProcAddress(
-            plug.m_data.hinstance(), "winampDSPGetHeader2");
+            plug.m_base_data.hinst, "winampDSPGetHeader2");
 
         if (!headertype) {
             headertype = (winampDSPGetHeaderType)GetProcAddress(
-                plug.m_data.hinstance(), "SPLGetDSPHeader2");
+                plug.hinstance(), "SPLGetDSPHeader2");
             if (!headertype) {
                 plug.errorSet("No DSP dll header found", GetLastError());
                 return;
@@ -177,7 +154,7 @@ class Plugin {
             plug.errorSet("Header version too great", -1);
             return;
         }
-        plug.m_data.description = plug.m_data.header()->description;
+        plug.m_base_data.description = plug.m_data.header()->description;
         TRACE("--------------------------------------------------------------------\n\n");
         if (for_enumeration_only) {
             // when we are just getting stuff to show it as an available plugin,
@@ -195,32 +172,17 @@ class Plugin {
         }
 
         plug.m_data.module()->hwndParent = parent;
-        plug.m_data.module()->hDllInstance = plug.m_data.hinstance();
+        plug.m_data.module()->hDllInstance = plug.hinstance();
 
         return;
     }
 
-    // can throw std::runtime_error
-    // Returns whatever the plugin replied in response to being activated
-    int do_activate() {
-        if (m_data.init_result >= 0) {
-            // already active!
-            return m_data.init_result;
-        }
-        assert(!filepath().empty() && m_data.hinstance());
-        if (filepath().empty()) {
-            throw std::runtime_error("cannot activate a plug with no filepath");
-        }
-        if (!m_data.module() || !m_data.header()) {
-            throw std::runtime_error(
-                "plugin cannot be activated if it is not initialized first.");
-        }
+    virtual void activate_guarded() override {
 
         EXCEPTION_POINTERS* xp = nullptr;
-
         __try {
 
-            m_data.init_result = m_data.module()->Init(m_data.module());
+            m_base_data.init_result = m_data.module()->Init(m_data.module());
         } __except (
             filter_msvc_exceptions(GetExceptionCode(), xp = GetExceptionInformation())) {
 
@@ -228,21 +190,40 @@ class Plugin {
                 this->quitModule(this->m_data.module());
             }
             errorSet("module threw exception when Init() called.", -2000);
-            throw std::runtime_error(this->m_data.errorString);
+            throw std::runtime_error(this->errorString());
+        }
+    }
+
+    // can throw std::runtime_error
+    // Returns whatever the plugin replied in response to being activated
+    int do_activate() {
+        if (m_base_data.init_result >= 0) {
+            // already active!
+            return m_base_data.init_result;
+        }
+        assert(!filePath().empty() && hinstance());
+        if (filePath().empty()) {
+            throw std::runtime_error("cannot activate a plug with no filepath");
+        }
+        if (!m_data.module() || !m_data.header()) {
+            throw std::runtime_error(
+                "plugin cannot be activated if it is not initialized first.");
         }
 
-        const auto desc = description();
+        activate_guarded();
+
+        const auto desc = this->description();
         if (desc == "AudioEnhance Windows Media Encoders Plugin for Winamp") {
-            if (m_data.init_result != 0) {
-                m_data.init_result = -1000;
+            if (m_base_data.init_result != 0) {
+                m_base_data.init_result = -1000;
                 errorSet("Only one instance of this plug is allowed per process", -1000);
                 if (m_data.module()) {
                     this->quitModule(this->m_data.module());
                 }
-                throw std::runtime_error(m_data.errorString);
+                throw std::runtime_error(this->errorString());
             }
         }
-        return m_data.init_result; // may be zero or 1 for success
+        return m_base_data.init_result; // may be zero or 1 for success
     }
 
 #ifdef DEBUG
@@ -250,31 +231,31 @@ class Plugin {
     void test_move_assign_copy(std::string_view fp) {
         Plugin plug(false, fp);
         Plugin copied = plug;
-        assert(plug.filepath() == copied.filepath());
-        assert(plug.m_data.hinstance());
-        assert(copied.m_data.hinstance());
+        assert(plug.filePath() == copied.filePath());
+        assert(plug.hinstance());
+        assert(copied.hinstance());
 
         Plugin moved_into = std::move(plug);
-        assert(moved_into.m_data.hinstance());
-        assert(!plug.m_data.hinstance());
+        assert(moved_into.hinstance());
+        assert(!plug.hinstance());
 
         Plugin moved_constructed(std::move(moved_into));
-        assert(moved_constructed.m_data.hinstance());
-        assert(!moved_into.m_data.hinstance());
+        assert(moved_constructed.hinstance());
+        assert(!moved_into.hinstance());
 
         Plugin constructed_from_copy(copied);
-        assert(constructed_from_copy.filepath() == copied.filepath());
-        assert(constructed_from_copy.m_data.hinstance());
-        assert(copied.m_data.hinstance());
+        assert(constructed_from_copy.filePath() == copied.filePath());
+        assert(constructed_from_copy.hinstance());
+        assert(copied.hinstance());
 
         plug = copied;
-        assert(plug.filepath() == copied.filepath());
-        assert(plug.m_data.hinstance() && copied.m_data.hinstance());
+        assert(plug.filePath() == copied.filePath());
+        assert(plug.hinstance() && copied.hinstance());
 
         Plugin p(false, fp);
         plug = std::move(p);
 
-        assert(plug.m_data.hinstance() && !p.m_data.hinstance());
+        assert(plug.hinstance() && !p.hinstance());
     }
 #pragma warning(default : 26800)
 
@@ -284,7 +265,7 @@ class Plugin {
     Plugin() {}
     Plugin(const bool for_enumeration_only, std::string_view path, HWND parent = nullptr)
         : m_data() {
-        m_data.filepath = path;
+        m_base_data.filepath = path;
         create_guarded(for_enumeration_only, *this, parent);
 #ifdef _DEBUG
         static bool tested = false;
@@ -306,64 +287,67 @@ class Plugin {
     auto& configHandleWindowText() const { return m_data.configHandleWindowText(); }
 
     public:
-    Plugin(const Plugin& other) : m_data() {
-        m_data.filepath = other.filepath();
-        create_guarded(other.m_data.for_enumeration_only, *this, other.m_data.parent);
+    Plugin(const Plugin& other) : plugins_base(other), m_data() {
+
+        create_guarded(
+            other.m_base_data.for_enumeration_only, *this, other.m_base_data.parent);
     }
 
-    Plugin(Plugin&& other) noexcept : m_data() {
+    Plugin(Plugin&& other) noexcept : plugins_base(std::move(other)), m_data() {
         std::swap(m_data, other.m_data);
-        assert(other.m_data.hinstance() == nullptr);
+        assert(other.hinstance() == nullptr);
     }
 
     Plugin& operator=(const Plugin& other) {
-        m_data.filepath = other.m_data.filepath;
-        create_guarded(other.m_data.for_enumeration_only, *this, other.m_data.parent);
+        plugins_base::operator=(other);
+        create_guarded(
+            other.m_base_data.for_enumeration_only, *this, other.m_base_data.parent);
         return *this;
     }
 
     Plugin& operator=(Plugin&& other) noexcept {
+        plugins_base::operator=(std::move(other));
         m_data = std::move(other.m_data);
+
         other.m_data = data();
-        assert(other.m_data.hinstance() == nullptr);
+
+        assert(other.hinstance() == nullptr);
         return *this;
     }
 
     int activate(Plugin& plug, Plugin& activated) {
-        if (m_data.for_enumeration_only) {
-            m_data.for_enumeration_only = false;
+        if (m_base_data.for_enumeration_only) {
+            m_base_data.for_enumeration_only = false;
         }
-        create_guarded(false, plug, m_data.parent);
+        create_guarded(false, plug, m_base_data.parent);
         activated = plug;
 
         return activated.do_activate();
     }
 
-    void free_internal_structures() {
-        if (m_data.init_result >= 0) {
+    virtual void free_internal_structures() {
+        if (m_base_data.init_result >= 0) {
             if (m_data.module()) {
                 quitModule(m_data.module());
                 m_data.module_set(nullptr);
             }
         }
-        if (m_data.hinstance()) {
-            FreeLibrary(m_data.hinstance());
-        }
         m_data.header_set(nullptr);
-        m_data.hinstance(nullptr);
-        m_data.init_result = -1;
+        // rest of cleanup now in base
     }
 
     ~Plugin() { free_internal_structures(); }
 
-    int doDSP(short* const buf, const int frameCount,
-        const portaudio_cpp::SampleRateType& sampleRate = 44100, const int nch = 2,
-        const int bps = 16) const {
+    virtual int doDSP(void* const buf, const int frameCount,
+        const portaudio_cpp::SampleRateType& sampleRate = 44100,
+        const portaudio_cpp::ChannelsType nch
+        = portaudio_cpp::ChannelsType::MonoStereo::stereo,
+        const int bps = 16) const override {
         assert(bps == 16); // winamp plugs can typically handle only 16-bit audio
 
         auto mod = m_data.module();
         int nsamps = mod->ModifySamples(
-            mod, (short* const)buf, frameCount, bps, nch, sampleRate.m_value);
+            mod, (short* const)buf, frameCount, bps, nch.m_value, sampleRate.m_value);
         assert(nsamps == frameCount); // we really don't want to be holding on to
                                       // data for real-time stuff
         return nsamps;
@@ -371,7 +355,7 @@ class Plugin {
 
     // might throw std::runtime_error
     int showConfig() {
-        if (m_data.init_result < 0) {
+        if (m_base_data.init_result < 0) {
             errorSet("Plugins must be activated before show()ing config window", -1);
             throw std::runtime_error(
                 "Plugins must be activated before show()ing config window");
@@ -384,10 +368,6 @@ class Plugin {
         configModule(m_data.module());
         return 0;
     }
-
-    std::string_view description() const noexcept { return m_data.description; }
-
-    std::string_view filepath() const noexcept { return m_data.filepath; }
 };
 
 using plugins_type = std::vector<Plugin>;
@@ -431,7 +411,7 @@ struct PlugEnumerator {
                 fp = finder.GetFilePath();
                 CStringA nPath(fp);
                 Plugin plug(true, nPath.GetBuffer(), m_parentHWND);
-                if (plug.m_data.lastError == 0) {
+                if (plug.lastError() == 0) {
                     retval.emplace_back(std::move(plug));
                 }
             }
@@ -449,6 +429,7 @@ struct Host {
     Host() = default;
     Host(const Host&) = delete;
     Host(Host&&) = delete;
+
     void setParent(HWND parent) { m_enumerator.m_parentHWND = parent; }
 
     HWND Parent() const noexcept { return m_enumerator.m_parentHWND; }
@@ -529,7 +510,8 @@ struct Host {
 
     void swapPlugins(int indexA, int indexB) {
         // lock?
-        std::swap(m_activePlugins[indexA], m_activePlugins[indexB]);
+        using namespace std;
+        swap(m_activePlugins[indexA], m_activePlugins[indexB]);
     }
 };
 

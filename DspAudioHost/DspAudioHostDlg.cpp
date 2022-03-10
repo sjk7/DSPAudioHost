@@ -1172,7 +1172,7 @@ void CDspAudioHostDlg::OnBnClickedBtnRefreshPlugs() {
 void CDspAudioHostDlg::tracePlugins() {
     winamp_dsp::Host& host = m_winamp_host;
     for (const auto& plug : host.m_enumerator.plugins()) {
-        TRACE("Plugin found @ %s\n", plug.filepath().data());
+        TRACE("Plugin found @ %s\n", plug.filePath().data());
         TRACE("Plugin has description: %s\n", plug.description().data());
         TRACE("\n");
     }
@@ -1614,6 +1614,7 @@ void CDspAudioHostDlg::OnBnClickedBtnRemove() {
                     MessageBox(L"Unexpected, cannot find activate plugin");
                 } else {
                     bool removed = m_winamp_host.removeActivatedPlug(found);
+
                     if (removed) {
                         removeActivatedPlugFromUI(nItem);
                         settingsSavePlugins();

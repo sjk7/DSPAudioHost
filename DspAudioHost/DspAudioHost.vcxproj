@@ -415,6 +415,7 @@
     <ClInclude Include="PASettings.h" />
     <ClInclude Include="PBar.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="plugins_base.h" />
     <ClInclude Include="PropPage.h" />
     <ClInclude Include="PropSheet.h" />
     <ClInclude Include="Resource.h" />

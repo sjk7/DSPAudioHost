@@ -1172,8 +1172,8 @@ template <typename AUDIOCALLBACK> struct PortAudio {
             throw std::runtime_error("Cannot find host");
         }
 
-        assert(std::string_view n1(m_currentApi.name);
-               == std::string_view n2(devhost->name)); // must belong to current api
+        assert(std::string_view(m_currentApi.name)
+            == std::string_view(devhost->name)); // must belong to current api
         m_currentDevices[static_cast<int>(inOrOut)] = di;
         assert(!m_currentDevices[static_cast<int>(inOrOut)].extendedName.empty());
         if (inOrOut == DeviceTypes::input) {

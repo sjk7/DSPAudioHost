@@ -234,7 +234,7 @@ void fade(int channels, int samples, Td* const* dest, Ts const* const* src, Ty s
 }
 
 //--------------------------------------------------------------------------
-
+#pragma warning(disable : 4468) // unannotated fallthrus
 // Interleave separate channels from source pointers to destination
 // (Destination requires channels*frames samples of storage). Performs
 // implicit type conversion.
