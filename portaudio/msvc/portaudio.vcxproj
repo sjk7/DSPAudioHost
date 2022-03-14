@@ -163,6 +163,7 @@
     <TargetName>$(ProjectName)_x86</TargetName>
     <CopyLocalDeploymentContent>true</CopyLocalDeploymentContent>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
+    <ClangTidyChecks>-missing-field-initializers, -implict-fallthrough</ClangTidyChecks>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='ASAN32|Win32'">
     <OutDir>$(Platform)\$(Configuration)\</OutDir>

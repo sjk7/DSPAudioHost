@@ -51,7 +51,8 @@ namespace Dsp {
 
 // Add src samples to dest, without clip or overflow checking.
 template <class Td, class Ts>
-void add(int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 0) {
+static inline void add(
+    int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 0) {
     if (srcSkip != 0 || destSkip != 0) {
         ++srcSkip;
         ++destSkip;
@@ -67,7 +68,7 @@ void add(int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 0
 
 // Multichannel add
 template <typename Td, typename Ts>
-void add(int channels, int samples, Td* const* dest, Ts const* const* src) {
+static inline void add(int channels, int samples, Td* const* dest, Ts const* const* src) {
     for (int i = channels; --i >= 0;) add(samples, dest[i], src[i]);
 }
 
@@ -76,7 +77,8 @@ void add(int channels, int samples, Td* const* dest, Ts const* const* src) {
 // Copy samples from src to dest, which may not overlap. Performs an implicit
 // type conversion if Ts and Td are different (for example, float to double).
 template <typename Td, typename Ts>
-void copy(int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 0) {
+static inline void copy(
+    int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 0) {
     if (srcSkip != 0) {
         if (destSkip != 0) {
             ++srcSkip;
@@ -106,7 +108,8 @@ void copy(int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 
 
 // Wrapper that uses memcpy if there is no skip and the types are the same
 template <typename Ty>
-void copy(int samples, Ty* dest, Ty const* src, int destSkip = 0, int srcSkip = 0) {
+static inline void copy(
+    int samples, Ty* dest, Ty const* src, int destSkip = 0, int srcSkip = 0) {
     if (destSkip != 0 || srcSkip != 0)
         copy<Ty, Ty>(samples, dest, src, destSkip, srcSkip);
     else
@@ -115,16 +118,17 @@ void copy(int samples, Ty* dest, Ty const* src, int destSkip = 0, int srcSkip = 
 
 // Copy a set of channels from src to dest, with implicit type conversion.
 template <typename Td, typename Ts>
-void copy(int channels, int samples, Td* const* dest, Ts const* const* src,
+static inline void copy(int channels, int samples, Td* const* dest, Ts const* const* src,
     int destSkip = 0, int srcSkip = 0) {
     for (int i = channels; --i >= 0;) copy(samples, dest[i], src[i], destSkip, srcSkip);
 }
 
 //--------------------------------------------------------------------------
-
+#pragma warning(disable : 28619) // unannotated fallthrough
 // Deinterleave channels. Performs implicit type conversion.
 template <typename Td, typename Ts>
-void deinterleave(int channels, int samples, Td* const* dest, Ts const* src) {
+static inline void deinterleave(
+    int channels, int samples, Td* const* dest, Ts const* src) {
     assert(channels > 1);
 
     switch (channels) {
@@ -186,7 +190,7 @@ void deinterleave(int channels, int samples, Td* const* dest, Ts const* src) {
 
 // Convenience for a stereo pair of channels
 template <typename Td, typename Ts>
-void deinterleave(int samples, Td* left, Td* right, Ts const* src) {
+static inline void deinterleave(int samples, Td* left, Td* right, Ts const* src) {
     Td* dest[2] = {0};
     dest[0] = left;
     dest[1] = right;
@@ -197,7 +201,7 @@ void deinterleave(int samples, Td* left, Td* right, Ts const* src) {
 
 // Fade dest
 template <typename Td, typename Ty>
-void fade(int samples, Td* dest, Ty start = 0, Ty end = 1) {
+static inline void fade(int samples, Td* dest, Ty start = 0, Ty end = 1) {
     Ty t = start;
     Ty dt = (end - start) / samples;
 
@@ -209,13 +213,14 @@ void fade(int samples, Td* dest, Ty start = 0, Ty end = 1) {
 
 // Fade dest cannels
 template <typename Td, typename Ty>
-void fade(int channels, int samples, Td* const* dest, Ty start = 0, Ty end = 1) {
+static inline void fade(
+    int channels, int samples, Td* const* dest, Ty start = 0, Ty end = 1) {
     for (int i = channels; --i >= 0;) fade(samples, dest[i], start, end);
 }
 
 // Fade src into dest
 template <typename Td, typename Ts, typename Ty>
-void fade(int samples, Td* dest, Ts const* src, Ty start = 0, Ty end = 1) {
+static inline void fade(int samples, Td* dest, Ts const* src, Ty start = 0, Ty end = 1) {
     Ty t = start;
     Ty dt = (end - start) / samples;
 
@@ -228,18 +233,20 @@ void fade(int samples, Td* dest, Ts const* src, Ty start = 0, Ty end = 1) {
 
 // Fade src channels into dest channels
 template <typename Td, typename Ts, typename Ty>
-void fade(int channels, int samples, Td* const* dest, Ts const* const* src, Ty start = 0,
-    Ty end = 1) {
+static inline void fade(int channels, int samples, Td* const* dest, Ts const* const* src,
+    Ty start = 0, Ty end = 1) {
     for (int i = channels; --i >= 0;) fade(samples, dest[i], src[i], start, end);
 }
 
 //--------------------------------------------------------------------------
 #pragma warning(disable : 4468) // unannotated fallthrus
+#pragma warning(disable : 26819) // unannotated fallthrus
 // Interleave separate channels from source pointers to destination
 // (Destination requires channels*frames samples of storage). Performs
 // implicit type conversion.
 template <typename Td, typename Ts>
-void interleave(int channels, size_t samples, Td* dest, Ts const* const* src) {
+static inline void interleave(
+    int channels, size_t samples, Td* dest, Ts const* const* src) {
     assert(channels > 1);
 
     if (samples == 0) return;
@@ -299,7 +306,7 @@ void interleave(int channels, size_t samples, Td* dest, Ts const* const* src) {
 
 // Convenience for a stereo channel pair
 template <typename Td, typename Ts>
-void interleave(int samples, Td* dest, Ts const* left, Ts const* right) {
+static inline void interleave(int samples, Td* dest, Ts const* left, Ts const* right) {
     const Ts* src[2] = {0};
     src[0] = left;
     src[1] = right;
@@ -310,7 +317,7 @@ void interleave(int samples, Td* dest, Ts const* left, Ts const* right) {
 
 // Multiply samples by a constant, without clip or overflow checking.
 template <typename Td, typename Ty>
-void multiply(int samples, Td* dest, Ty factor, int destSkip = 0) {
+static inline void multiply(int samples, Td* dest, Ty factor, int destSkip = 0) {
     if (destSkip != 0) {
         ++destSkip;
         while (--samples >= 0) {
@@ -327,7 +334,8 @@ void multiply(int samples, Td* dest, Ty factor, int destSkip = 0) {
 
 // Multiply a set of channels by a constant.
 template <typename Td, typename Ty>
-void multiply(int channels, int samples, Td* const* dest, Ty factor, int destSkip = 0) {
+static inline void multiply(
+    int channels, int samples, Td* const* dest, Ty factor, int destSkip = 0) {
     for (int i = channels; --i >= 0;) multiply(samples, dest[i], factor, destSkip);
 }
 
@@ -336,7 +344,8 @@ void multiply(int channels, int samples, Td* const* dest, Ty factor, int destSki
 // Copy samples from src to dest in reversed order. Performs implicit
 // type conversion. src and dest may not overlap.
 template <typename Td, typename Ts>
-void reverse(int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 0) {
+static inline void reverse(
+    int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip = 0) {
     src += (srcSkip + 1) * samples;
 
     if (srcSkip != 0 || destSkip == 0) {
@@ -353,14 +362,15 @@ void reverse(int samples, Td* dest, Ts const* src, int destSkip = 0, int srcSkip
 }
 
 template <typename Td, typename Ts>
-void reverse(int channels, size_t frames, Td* const* dest, const Ts* const* src) {
+static inline void reverse(
+    int channels, size_t frames, Td* const* dest, const Ts* const* src) {
     for (int i = channels; --i >= 0;) reverse(frames, dest[i], src[i]);
 }
 
 //--------------------------------------------------------------------------
 
 template <typename Tn>
-void to_mono(int samples, Tn* dest, Tn const* left, Tn const* right) {
+static inline void to_mono(int samples, Tn* dest, Tn const* left, Tn const* right) {
 #if 1
     while (samples-- > 0)
         *dest++ = (*left++ + *right++) * Tn(0.70710678118654752440084436210485);
@@ -372,7 +382,7 @@ void to_mono(int samples, Tn* dest, Tn const* left, Tn const* right) {
 //--------------------------------------------------------------------------
 
 template <typename T>
-void validate(int numChannels, int numSamples, T const* const* src) {
+static inline void validate(int numChannels, int numSamples, T const* const* src) {
     for (int i = 0; i < numChannels; ++i) {
         T const* p = src[i];
         for (int j = numSamples; j > 0; --j) {
@@ -442,7 +452,7 @@ void zero (int samples,
 
 #else
 // Fill a channel with zeros. This works even if Ty is not a basic type.
-template <typename Ty> void zero(int samples, Ty* dest, int destSkip = 0) {
+template <typename Ty> static inline void zero(int samples, Ty* dest, int destSkip = 0) {
     if (destSkip != 0) {
         ++destSkip;
         while (--samples >= 0) {
@@ -458,7 +468,7 @@ template <typename Ty> void zero(int samples, Ty* dest, int destSkip = 0) {
 
 // Fill a set of channels with zero.
 template <typename Ty>
-void zero(int channels, int samples, Ty* const* dest, int destSkip = 0) {
+static inline void zero(int channels, int samples, Ty* const* dest, int destSkip = 0) {
     for (int i = channels; --i >= 0;) zero(samples, dest[i], destSkip);
 }
 
@@ -475,7 +485,7 @@ void zero(int channels, int samples, Ty* const* dest, int destSkip = 0) {
 // http://www.codeproject.com/KB/recipes/one_variable_optimize.aspx?msg=2779038
 
 template <class TFunction>
-double BrentMinimize(TFunction& f, // [in] objective function to minimize
+static inline double BrentMinimize(TFunction& f, // [in] objective function to minimize
     double leftEnd, // [in] smaller value of bracketing interval
     double rightEnd, // [in] larger value of bracketing interval
     double epsilon, // [in] stopping tolerance

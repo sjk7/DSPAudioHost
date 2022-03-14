@@ -78,7 +78,7 @@ BOOL CDspAudioHostApp::InitInstance() {
     // manifest specifies use of ComCtl32.dll version 6 or later to enable
     // visual styles.  Otherwise, any window creation will fail.
     {
-        INITCOMMONCONTROLSEX InitCtrls{0};
+        INITCOMMONCONTROLSEX InitCtrls = {};
         InitCtrls.dwSize = sizeof(InitCtrls);
         // Set this to include all the common control classes you want to use
         // in your application.
@@ -98,24 +98,28 @@ BOOL CDspAudioHostApp::InitInstance() {
     CMFCVisualManager::SetDefaultManager(RUNTIME_CLASS(CMFCVisualManagerWindows));
 
     {
-        CString filepath;
-        filepath.GetBufferSetLength(MAX_PATH);
-        assert(filepath.GetLength() == MAX_PATH);
-        ::GetModuleFileName(NULL, filepath.GetBuffer(), MAX_PATH);
-        filepath.Replace(L"\\", L"_");
-        filepath.Replace(L":", L"_");
-        filepath.Replace(L".", L"_");
+        CString* filepath = new CString; // on heap otherwise clang analyzer warns we use
+                                         // too much stack space. Note from future me:
+                                         // _still_ complains. FFS.
+        filepath->GetBufferSetLength(MAX_PATH);
+        assert(filepath->GetLength() == MAX_PATH);
+        ::GetModuleFileName(NULL, filepath->GetBuffer(), MAX_PATH);
+        filepath->Replace(L"\\", L"_");
+        filepath->Replace(L":", L"_");
+        filepath->Replace(L".", L"_");
 
-        if (another_instance_running(filepath)) {
+        if (another_instance_running(*filepath)) {
+            delete filepath;
             return FALSE;
         }
 
-        SetRegistryKey(filepath);
+        SetRegistryKey(*filepath);
+        delete filepath;
     }
 
-    CDspAudioHostDlg dlg;
-    m_pMainWnd = &dlg;
-    INT_PTR nResponse = dlg.DoModal();
+    CDspAudioHostDlg* dlg = new CDspAudioHostDlg;
+    m_pMainWnd = dlg;
+    INT_PTR nResponse = dlg->DoModal();
     if (nResponse == IDOK) {
         // TODO: Place code here to handle when the dialog is
         //  dismissed with OK
@@ -130,6 +134,8 @@ BOOL CDspAudioHostApp::InitInstance() {
             "Warning: if you are using MFC controls on the dialog, you cannot #define "
             "_AFX_NO_MFC_CONTROLS_IN_DIALOGS.\n");
     }
+
+    delete dlg;
 
 #if !defined(_AFXDLL) && !defined(_AFX_NO_MFC_CONTROLS_IN_DIALOGS)
     ControlBarCleanUp();

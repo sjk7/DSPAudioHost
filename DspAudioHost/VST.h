@@ -15,9 +15,15 @@
 #include "../Helpers/vstsdk2.4/pluginterfaces/vst2.x/vstfxstore.h"
 #include "../DSPFilters/shared/DSPFilters/include/DspFilters/Utilities.h" // for interleaving and de-interleaving
 #include "../portaudio/portaudio_wrapper.h" // some datatypes, like SampleRate, Channels, etc
+#include "plugins_base.h"
+#include "PropSheet.h"
+#include "PropPage.h"
 #include <utility>
 #include <string>
 #include <cassert>
+#include <vector>
+#include <unordered_map>
+#include <unordered_set>
 
 #ifndef logWarn
 #define logWarn TRACE
@@ -38,6 +44,19 @@ inline std::string parseFilename(
     }
     return ret;
 }
+
+namespace vst {
+class Plug;
+namespace detail {
+    static inline vst::Plug* g_current_plug{nullptr};
+    inline vst::Plug* find_plug(AEffect* eff) {
+
+        if (eff && eff->user) return (vst::Plug*)eff->user;
+        assert(detail::g_current_plug);
+        return detail::g_current_plug;
+    }
+} // namespace detail
+} // namespace vst
 
 // C callbacks
 extern "C" {
@@ -65,33 +84,12 @@ static inline void logDeprecated(const char* s, const char* s2) {
     std::string str(s);
     str += " ";
     str += s2;
+    str += "\n";
     ::OutputDebugStringA(str.c_str());
 }
-static inline AEffect* loadPlugin(const char* vstPath, HMODULE& modulePtr) {
-    AEffect* plugin = NULL;
 
-    static HRESULT hrco = ::CoInitialize(NULL);
-
-    modulePtr = LoadLibraryA(vstPath);
-    if (modulePtr == NULL) {
-        TRACE("Failed trying to load VST from '%s', error %d\n", vstPath, GetLastError());
-        return NULL;
-    }
-
-    vstPluginFuncPtr mainEntryPoint
-        = (vstPluginFuncPtr)GetProcAddress(modulePtr, "VSTPluginMain");
-
-    if (!mainEntryPoint) {
-        // plugs used to use 'main' before 'VSTPluginMain' was mandated. FFS!
-        mainEntryPoint = (vstPluginFuncPtr)GetProcAddress(modulePtr, "main");
-    }
-    if (!mainEntryPoint) {
-        return nullptr;
-    }
-    // Instantiate the plugin
-    plugin = mainEntryPoint(hostCallback);
-    return plugin;
-}
+static inline AEffect* loadPlugin(
+    vst::Plug* plug, const char* vstPath, HMODULE& modulePtr);
 
 static inline AEffect* configurePlugin(AEffect* plugin) {
     // Check plugin's magic number
@@ -539,48 +537,48 @@ static inline void processAudio(
     plugin->processReplacing(plugin, ins, outs, numFrames);
 }
 
-struct PlugData {
-    std::string m_filepath;
-    std::string m_description;
-};
-
 namespace vst {
 class Plug;
 namespace detail {
-    static inline Plug* g_current_plug{nullptr};
-    using plugs_by_effect_ptr_type = std::unordered_map<std::ptrdiff_t, Plug*>;
-    inline plugs_by_effect_ptr_type plug_map;
+
+    struct CaseInsensHash {
+        size_t operator()(const std::string& Keyval) const {
+            // You might need a better hash function than this
+            size_t h = 0;
+            std::for_each(Keyval.begin(), Keyval.end(), [&](char c) { h += tolower(c); });
+            return h;
+        }
+    };
+
+    struct CaseInsensEqual {
+        bool operator()(const std::string& Left, const std::string& Right) const {
+            return Left.size() == Right.size()
+                && std::equal(Left.begin(), Left.end(), Right.begin(),
+                    [](char a, char b) { return tolower(a) == tolower(b); });
+        }
+    };
 
 } // namespace detail
-class Plug {
-    AEffect* m_effect{0};
 
-    PlugData m_data;
-    std::string m_serr;
+struct Plugins;
+
+class Plug : public plugins_base {
+    friend struct Plugins;
+
     Plug() = default; // note it is private. And no, you may not call this one!
     // Plug& operator=(const Plug& rhs) = default;
-    Plug& operator=(const Plug& other) {
+    Plug& operator=(Plug other) {
         assert(0); // allow this, or not?
-        if (other.audioDataSize) {
-            assert(0);
-        }
+        using std::swap;
+        swap(*this, other);
         return *this;
     }
-    void addToMap() {
-        auto peff = (std::ptrdiff_t)m_effect;
-        detail::plug_map.insert({peff, this});
-    }
-    void removeFromMap() {
-        auto it = detail::plug_map.find((uintptr_t)m_effect);
-        assert(it != detail::plug_map.end());
-        detail::plug_map.erase(it);
+
+    inline friend void swap(Plug& p1, Plug& p2) {
+        using std::swap;
+        swap(p1.m_internal, p2.m_internal);
     }
 
-    public:
-    inline auto is_valid() const noexcept {
-        return m_effect && m_effect->magic == kEffectMagic;
-    }
-    std::string_view description() const noexcept { return m_data.m_description; }
     static inline auto does_not_work
         = "C:\\Program Files (x86)\\REAPER\\Plugins\\FX\\reagate.dll";
     static inline auto dll_path
@@ -588,43 +586,121 @@ class Plug {
     static inline auto dlll_path
         = "C:\\Users\\DevNVME\\Documents\\VSTPlugins\\Auburn Sounds Graillon 2.dll";
 
+    static inline Plug create(std::string_view filepath) noexcept(false) {
+        Plug p(filepath);
+        return p;
+    }
+
+    // returns a plug that simply tries to load the dll. Not instantiated fully
+    Plug(std::string_view filepath) noexcept(false) : Plug() { myLoadPlugin(filepath); }
+
+    // ONLY loads dll and checks all is well
+    // can throw!
+    using StringMap = std::unordered_set<std::string, detail::CaseInsensHash,
+        detail::CaseInsensEqual>;
+    static inline StringMap m_blacklist{{"DiracLE.dll"}, {"elastique2.dll"},
+        {"elastique21.dll"}, {"elastique3.dll"}, {"reaper_mp3dec.dll"}, {"ffmpeg.dll"},
+        {"jsfx.dll"}, {"libmp3lame.dll"}, {"reaper_cd.dll"}, {"reaper_csurf.dll"},
+        {"reaper_ddp.dll"}, {"reaper_explorer.dll"}, {"reaper_flac.dll"},
+        {"reaper_midi.dll"}, {"reaper_ogg.dll"}, {"reaper_opus.dll"}, {"reaper_rex.dll"},
+        {"reaper_video.dll"}, {"reaper_wave.dll"}, {"reaper_wavpack.dll"},
+        {"rex shared library.dll"}, {"rubberband.dll"}, {"soundtouch.dll"}};
+
+    inline void myLoadPlugin(std::string_view filepath, bool ignoreBlacklist = false) {
+
+        this->m_base_data.for_enumeration_only = true;
+        if (!ignoreBlacklist) {
+            const auto name = parseFilename(filepath, true);
+            auto it = m_blacklist.find(name);
+            if (it != m_blacklist.end()) {
+                this->errorSet(-7, "Plugin: ", name, " is blacklisted by developer");
+                this->m_base_data.init_result = -7;
+                this->m_base_data.init_result = -7;
+                this->throw_error();
+            }
+        }
+
+        m_internal.effect = loadPlugin(this, filepath.data(), this->m_base_data.hinst);
+
+        if (this->lastError() < 0) {
+            // we don't like the plugin. Perhaps its midi?
+            throw_error();
+        }
+        if (!m_internal.effect) {
+            std::string serr("Failed to load VST plugin: ");
+            serr += filepath;
+            this->errorSet(serr, -1);
+            this->m_base_data.init_result = -1;
+            this->throw_error();
+            return;
+        }
+        this->m_base_data.filepath = filepath;
+        this->m_base_data.init_result = 1;
+        m_internal.effect->user = this;
+        this->m_base_data.description = getEffectName(m_internal.effect);
+        if (this->m_base_data.description.empty()) {
+            this->m_base_data.description = parseFilename(filepath);
+        }
+
+        return;
+    }
+    // this really wants to be private
+    virtual void activate_guarded() const override { // show the plugin;
+        ASSERT(0);
+    }
+
+    public:
+    virtual int doDSP(void* const buf, const int frameCount,
+        const portaudio_cpp::SampleRateType& sampleRate,
+        const portaudio_cpp::ChannelsType& nch, const int bps) const override {
+
+        assert(bps == 32);
+        return doDSP_local((float* const)buf, frameCount, sampleRate, nch.m_value, bps);
+    }
+
+    virtual bool has_header() const noexcept override { return is_valid(); }
+
+    inline bool is_valid() const noexcept {
+        if (!m_internal.effect) {
+            if (this->m_base_data.for_enumeration_only) {
+                return this->m_base_data.init_result >= 0;
+            }
+        }
+        return m_internal.effect && !this->m_base_data.filepath.empty();
+    }
+
     CRect getUIRect() const noexcept {
-        assert(m_effect);
-        auto effect = m_effect;
+        assert(m_internal.effect);
+        auto effect = m_internal.effect;
         ERect* rect{nullptr};
         effect->dispatcher(effect, effEditGetRect, 0, 0, &rect, 0);
         CRect myrect(rect->left, rect->top, rect->right, rect->bottom);
         return myrect;
     }
 
-    HMODULE m_hmod{0};
-    Plug(HWND hTab, HWND hTabControl, std::string_view filepath = dll_path) : Plug() {
-        detail::g_current_plug = this;
-        m_data.m_filepath = filepath;
-        m_data.m_description = filepath; // set as temporary so we know who we are in the
-                                         // callback, which my be called durn creation
+    Plug(PropSheet* tabctrl, PropPage* propPage, int tabNum,
+        std::string_view filepath = dll_path)
+        : Plug() {
 
-        m_effect = loadPlugin(filepath.data(), m_hmod);
-        if (!m_effect) {
-            m_serr = "Failed to load plugin: ";
-            m_serr += filepath;
-            return;
-        }
+        // set as temporary so we know who we are in the
+        // callback, which my be called durn creation
 
-        m_effect->user = this;
-        m_data.m_description = getEffectName(m_effect);
-        if (m_data.m_description.empty()) {
-            m_data.m_description = parseFilename(filepath);
-        }
-        addToMap();
-        detail::g_current_plug = nullptr;
+        this->m_base_data.filepath = filepath;
+        this->m_base_data.description = filepath;
+        m_internal.propSheet = tabctrl;
+        m_internal.propSheetPage = propPage;
+        m_internal.tabNum = tabNum;
+        HWND hTabControl = tabctrl->GetSafeHwnd();
+        HWND hTab = propPage->GetSafeHwnd();
 
-        configurePlugin(m_effect);
-        startPlugin(m_effect);
+        myLoadPlugin(filepath);
+
+        configurePlugin(m_internal.effect);
+        startPlugin(m_internal.effect);
         char paramName[256] = {0};
         char paramLabel[256] = {0};
         char paramDisplay[256] = {0};
-        auto effect = m_effect;
+        auto effect = m_internal.effect;
         for (VstInt32 paramIndex = 0; paramIndex < effect->numParams; paramIndex++) {
 
             effect->dispatcher(effect, effGetParamName, paramIndex, 0, paramName, 0);
@@ -657,7 +733,7 @@ class Plug {
         // find pluginwindow:
         int count = 0;
         HWND child = hTab;
-        HWND plugEditor = 0;
+        m_internal.plugEditor = nullptr;
 
         for (child = ::GetWindow(child, GW_CHILD); child;
              child = ::GetWindow(child, GW_HWNDNEXT)) {
@@ -669,149 +745,382 @@ class Plug {
             TRACE("Got window text: %s\n", buf);
             if (r.Width() == plugRect2.Width() && r.Height() == plugRect2.Height()) {
                 // is this needed? there seems to be only one child
-                plugEditor = child;
+                m_internal.plugEditor = child;
                 auto pt = r.TopLeft();
                 ScreenToClient(child, &pt);
                 pt.y += 50;
                 ::SetWindowPos(child, 0, 0, pt.y, 0, 0, SWP_NOSIZE);
-                m_editorOpen = true;
+                m_internal.editorOpen = true;
                 break;
             }
         }
-        checkEffectProperties(m_effect, m_presets);
+        checkEffectProperties(m_internal.effect, m_presets);
 
         // if (::loadChunkData(preset_path(), m_effect)) {
         //     m_presets.clear();
         //     checkEffectProperties(m_effect, m_presets);
         // }
-        loadChunkDataProg(preset_path_prog(), m_effect);
+        loadChunkDataProg(preset_path_prog(), m_internal.effect);
 
-        canPluginDo("ProcessReplacing", m_effect);
+        canPluginDo("ProcessReplacing", m_internal.effect);
     }
 
     int dispatch(const int opCode, int value = 0, void* ptr = 0) {
-        return m_effect->dispatcher(m_effect, opCode, 0, value, ptr, 0.0f);
+        assert(m_internal.effect);
+        auto ret = m_internal.effect->dispatcher(
+            m_internal.effect, opCode, 0, value, ptr, 0.0f);
+        if (opCode == effClose) {
+            m_internal.effect
+                = nullptr; // should flag a warning if sum1 tries to use later!
+        }
+        return ret;
     }
 
-    Plug(const Plug& rhs) {
+    Plug(Plug&& rhs) noexcept : plugins_base(std::move(rhs)) {
         using std::swap;
-        m_data = rhs.m_data;
-        assert(0);
+        swap(m_internal, rhs.m_internal);
+        // using  moved-fromo object, I know!
+        assert(rhs.m_internal.effect == nullptr);
+        assert(rhs.m_base_data.hinst == nullptr);
     }
-    bool m_editorOpen{false};
+
+    // must be here else vector complains
+    Plug(const Plug& rhs) noexcept : plugins_base(rhs) {
+        // if one is copied, rhs must give up its ownership
+        m_internal = rhs.m_internal;
+        rhs.m_internal.effect = nullptr;
+        rhs.m_internal.audioDataSize = 0;
+    }
+
     void cleanup() {
 
-        if (m_effect) {
-            if (m_editorOpen) {
-                dispatch(effEditClose);
-                m_editorOpen = false;
+        __try {
+            if (m_internal.effect) {
+                if (m_internal.editorOpen) {
+                    dispatch(effEditClose);
+                    m_internal.editorOpen = false;
+                }
+                if (m_base_data.is_running) {
+                    dispatch(effStopProcess);
+                    dispatch(effMainsChanged, 0, 0);
+                }
+                dispatch(effClose);
+                ::CoUninitialize(); // only uninit if we have not been moved from, etc
             }
-            dispatch(effStopProcess);
-            dispatch(effMainsChanged, 0, 0);
-            dispatch(effClose);
-        }
-        if (m_hmod) {
-            FreeLibrary(m_hmod);
-            ::CoUninitialize();
-            m_hmod = nullptr;
-        }
 
-        if (audioDataSize) {
-            delete[] planarData[0];
-            delete[] planarData[1];
+            if (m_internal.audioDataSize) {
+                delete[] m_internal.planarData[0];
+                delete[] m_internal.planarData[1];
+            }
+
+            if (this->m_base_data.hinst) {
+                ::FreeLibrary(this->m_base_data.hinst);
+                m_base_data.hinst = nullptr;
+            }
+        } __except (
+            filter_msvc_exceptions(GetExceptionCode(), GetExceptionInformation())) {
+            TRACE("module threw exception when cleanup() called. Meh\n");
+            ::CoUninitialize(); // only uninit if we have not been moved from, etc
         }
     }
 
     ~Plug() {
-        ::saveChunkData(preset_path(), m_effect, m_currentPreset);
-        saveChunkDataProgram(preset_path_prog(), m_effect, m_currentPreset);
+        if (m_internal.effect) {
+            ::saveChunkData(preset_path(), m_internal.effect, m_currentPreset);
+            saveChunkDataProgram(preset_path_prog(), m_internal.effect, m_currentPreset);
+        }
         cleanup();
     }
 
     int m_currentPreset{0};
     std::vector<std::string> m_presets;
-    std::string preset_path() const noexcept { return m_data.m_description + ".fxb"; }
+    std::string preset_path() const noexcept {
+        return this->m_base_data.description + ".fxb";
+    }
     std::string preset_path_prog() const noexcept {
-        return m_data.m_description + ".fxp";
+        return this->m_base_data.description + ".fxp";
     }
 
-    // interleave/deinterleave buffers
-    mutable std::vector<std::vector<float>> m_audio;
-    // interleave/deinterleave buffers
-    mutable std::vector<std::vector<float>> m_audio2;
-    mutable float* planarData[2]{0};
-    mutable int audioDataSize = 0;
-    mutable uint32_t ctr = 0;
+    virtual plugins_base::PlugType getType() const noexcept override {
+        return plugins_base::PlugType::VST;
+    }
 
-    inline int doDSP(float* const buf, const int frameCount,
+    virtual HWND configHandle() const noexcept override {
+        if (!m_internal.propSheet) return HWND();
+        return m_internal.propSheet->GetSafeHwnd();
+    }
+
+    virtual int showConfig() const override {
+        if (!m_internal.effect) {
+            ASSERT(0);
+            return -1;
+        }
+        // force show the site?
+
+        if (!m_internal.editorOpen) {
+            m_internal.effect->dispatcher(m_internal.effect, effEditOpen, 0, 0,
+                m_internal.propSheetPage->GetSafeHwnd(), 0);
+        }
+
+        ::ShowWindow(m_internal.propSheet->GetSafeHwnd(), SW_SHOWNORMAL);
+        ::ShowWindow(m_internal.propSheetPage->GetSafeHwnd(), SW_SHOWNORMAL);
+        m_internal.propSheet->SetActivePage(m_internal.tabNum);
+        ::SetForegroundWindow(m_internal.propSheet->GetSafeHwnd());
+        return 0;
+    }
+
+    struct internal {
+
+        mutable AEffect* effect{0};
+        // interleave/deinterleave buffers
+        mutable std::vector<std::vector<float>> audio;
+        // interleave/deinterleave buffers
+        mutable std::vector<std::vector<float>> audio2;
+        mutable float* planarData[2] = {};
+        mutable int audioDataSize = 0;
+        HWND plugEditor = nullptr;
+        PropSheet* propSheet = nullptr; // the entire VST config window
+        PropPage* propSheetPage
+            = nullptr; // the tab inside which the editor UI is located
+        int tabNum = -1;
+        bool editorOpen{false};
+        mutable std::wstring config_window_text;
+        mutable uint32_t ctr = 0;
+    };
+    internal m_internal;
+
+    HWND configHandleWindowGet() const noexcept { return m_internal.plugEditor; }
+
+    const std::wstring& configHandleWindowText() const override {
+
+        CStringW ffs;
+        m_internal.propSheet->GetWindowTextW(ffs);
+        m_internal.config_window_text = ffs;
+        return m_internal.config_window_text;
+    }
+
+    inline int doDSP_local(float* const buf, const int frameCount,
         const portaudio_cpp::SampleRateType& sampleRate = 44100, const int nch = 2,
         const int bps = 32) const {
         assert(bps == 32); // VSTs typically expect floating or double-precision samples.
         assert(nch == 2);
 
-        if (ctr == 0) {
-            suspendPlugin(m_effect);
-            m_effect->dispatcher(
-                m_effect, effSetSampleRate, 0, 0, NULL, (float)sampleRate.m_value);
+        if (m_internal.ctr == 0) {
+            suspendPlugin(m_internal.effect);
+            m_internal.effect->dispatcher(m_internal.effect, effSetSampleRate, 0, 0, NULL,
+                (float)sampleRate.m_value);
             int myblocksize = frameCount;
-            m_effect->dispatcher(
-                m_effect, effSetBlockSize, 0, myblocksize * 2, NULL, 0.0f);
+            m_internal.effect->dispatcher(
+                m_internal.effect, effSetBlockSize, 0, myblocksize * 2, NULL, 0.0f);
 
-            resumePlugin(m_effect);
+            resumePlugin(m_internal.effect);
         }
-        ctr++;
+        m_internal.ctr++;
 
         const auto nfloats = frameCount * nch;
-        if (audioDataSize != frameCount) {
-            if (audioDataSize) {
-                delete[] planarData[0];
-                delete[] planarData[1];
+        if (m_internal.audioDataSize != frameCount) {
+            if (m_internal.audioDataSize) {
+                delete[] m_internal.planarData[0];
+                delete[] m_internal.planarData[1];
             }
-            planarData[0] = new float[frameCount];
-            planarData[1] = new float[frameCount];
-            audioDataSize = frameCount;
+            m_internal.planarData[0] = new float[frameCount];
+            m_internal.planarData[1] = new float[frameCount];
+            m_internal.audioDataSize = frameCount;
         }
 
-        Dsp::deinterleave<float, float>(2, frameCount, planarData, buf);
+        Dsp::deinterleave<float, float>(2, frameCount, m_internal.planarData, buf);
         // --> process the audio in plugin ...
-        processAudio(m_effect, planarData, planarData, frameCount);
+        processAudio(
+            m_internal.effect, m_internal.planarData, m_internal.planarData, frameCount);
 
-        Dsp::interleave(nch, frameCount, buf, planarData);
+        Dsp::interleave(nch, frameCount, buf, m_internal.planarData);
 
         return 0;
     }
+
+    void setError(std::string_view sv, int errCode) { this->errorSet(sv, errCode); }
+    void filepathSet(std::string_view fp) { this->m_base_data.filepath = fp; }
+
+    protected:
 };
 
-namespace detail {
+struct Plugins {
+    friend class Plug;
+    // plugs are actually "owned" here!
+    using plugsType = std::vector<Plug>;
+    plugsType m_plugsAvailable;
+    plugsType m_plugsActive;
 
-    inline Plug* find_plug(AEffect* eff) {
-        auto it = plug_map.find((std::uintptr_t(eff)));
-        if (it != plug_map.end()) {
-            return it->second;
+    const auto& plugsAvailable() const { return m_plugsAvailable; }
+
+    using searchPathsType = std::unordered_map<std::string, std::string>;
+    searchPathsType m_searchPaths = {{"C:\\Program Files (x86)\\REAPER\\Plugins\\",
+                                         "C:\\Program Files (x86)\\REAPER\\Plugins\\"},
+        {"C:\\Users\\DevNVME\\Documents\\VSTPlugins\\",
+            "C:\\Users\\DevNVME\\Documents\\VSTPlugins\\"},
+        {"VSTPlugins\\", "VSTPlugins\\"}};
+
+    // find plugs in the path (must end with a slash!) and optionally in the paths
+    // specified in m_searchPaths, and add ones that will actually instantiate with
+    // no errors into m_plugsAvailable
+    void scanForPlugs(const std::string& searchDirEndSlash = std::string(),
+        bool useSearchPaths = true) {
+
+        if (searchDirEndSlash.empty() && !useSearchPaths) {
+            assert("What do you want me to do: no searchDir and not using searchPaths?"
+                == nullptr);
         }
+        m_plugsAvailable.clear();
+        std::string str = searchDirEndSlash;
+
+        if (!str.empty()) {
+
+            assert(str.find_last_of("\\")
+                == str.length()); //'kin ell! I even _named_ it searchDirEndSlash ffs
+        }
+        std::vector<std::string> theseDirs;
+        if (useSearchPaths) {
+            if (!str.empty()) {
+                m_searchPaths.insert_or_assign(str, str);
+            }
+            for (const auto& pr : m_searchPaths) {
+                theseDirs.push_back(pr.first);
+            }
+        }
+
+        if (!str.empty()) {
+            theseDirs.push_back(str);
+        }
+
+        for (const auto dir : theseDirs) {
+            Recurse(CString(dir.data()));
+        }
+    }
+
+    // this means take plug p (who is enum-only plug) and instantiate
+    Plug* activatePlug(const Plug& p) {
+        assert(0);
         return nullptr;
     }
-} // namespace detail
+
+    private:
+    void Recurse(const CString& pstr) {
+        CFileFind finder;
+
+        // build a string with wildcards
+        CString strWildcard(pstr);
+        strWildcard += _T("\\*.*");
+
+        // start working for files
+        BOOL bWorking = finder.FindFile(strWildcard);
+
+        while (bWorking) {
+            bWorking = finder.FindNextFile();
+
+            // skip . and .. files; otherwise, we'd
+            // recur infinitely!
+
+            if (finder.IsDots()) continue;
+
+            // if it's a directory, recursively search it
+            CString str = finder.GetFilePath();
+            if (finder.IsDirectory()) {
+
+                Recurse(str);
+            } else {
+                CString ext = str.Right(4);
+                if (ext == ".dll") {
+                    local_add(str);
+                }
+            }
+        }
+
+        finder.Close();
+    }
+
+    void local_add(const CString fp) {
+        CStringA nPath(fp);
+        std::string_view mypath(nPath.MakeLower());
+        std::string just_filename = parseFilename(mypath);
+        auto is_winamp = just_filename.find("dsp_") == 0;
+        if (!is_winamp) {
+            try {
+                auto plug = Plug::create(nPath.GetBuffer());
+                assert(plug.is_valid());
+                plug.cleanup(); // only for enumeration after all
+                assert(plug.is_valid()); // still valid, but it has only been
+                                         // enumerated
+                m_plugsAvailable.push_back(plug);
+
+            } catch (const std::exception& e) {
+                TRACE("Failed to load plugin at: %s\nWith error:%s\n\n",
+                    nPath.GetBuffer(), e.what());
+            }
+        }
+    }
+};
 
 } // namespace vst
+
+static inline AEffect* loadPlugin(
+    vst::Plug* plug, const char* vstPath, HMODULE& modulePtr) {
+
+    AEffect* plugin = nullptr;
+    __try {
+
+        static HRESULT hrco = ::CoInitialize(NULL);
+
+        plug->m_base_data.init_result = -1;
+        modulePtr = LoadLibraryA(vstPath);
+        if (modulePtr == NULL) {
+            TRACE("Failed trying to load VST from '%s', error %d\n", vstPath,
+                GetLastError());
+            return NULL;
+        }
+
+        plug->m_base_data.init_result = 0;
+
+        vstPluginFuncPtr mainEntryPoint
+            = (vstPluginFuncPtr)GetProcAddress(modulePtr, "VSTPluginMain");
+
+        if (!mainEntryPoint) {
+            // plugs used to use 'main' before 'VSTPluginMain' was mandated. FFS!
+            mainEntryPoint = (vstPluginFuncPtr)GetProcAddress(modulePtr, "main");
+        }
+        if (!mainEntryPoint) {
+            return nullptr;
+        }
+        plug->filepathSet(vstPath);
+        vst::detail::g_current_plug = plug;
+        // Instantiate the plugin
+        plugin = mainEntryPoint(hostCallback);
+    } __except (filter_msvc_exceptions(GetExceptionCode(), GetExceptionInformation())) {
+        TRACE("module threw exception when loadPlugin() called. Meh\n");
+        plug->m_base_data.init_result = -1;
+    }
+
+    vst::detail::g_current_plug = nullptr;
+    return plugin;
+}
 
 extern "C" {
 inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
     VstInt32 index, VstInt32 value, void* ptr, float opt) {
 
     VstIntPtr result = 0;
-    vst::Plug* plugptr = vst::detail::find_plug(effect);
-    if (!plugptr) {
-        plugptr = vst::detail::g_current_plug;
-    } else {
-        assert(plugptr);
-        bool ok = plugptr->is_valid();
-        ASSERT(ok);
-        if (!ok) return 0;
-    }
+    vst::Plug* plugptr = nullptr;
 
-    const auto name = plugptr->description();
-    const auto pluginIdString = name.data();
+    if (!effect || !effect->user) {
+        plugptr = vst::detail::find_plug(effect);
+    } else {
+        plugptr = (vst::Plug*)effect->user;
+    }
+    assert(plugptr);
+
+    const auto& name = plugptr->description();
+    const auto& pluginIdString = name.data();
+    const auto& filepath = plugptr->filePath();
+    (void)filepath;
 
     if (opcode < 0) {
         TRACE("plugin sent some invalid (negative) value %d\n", opcode);
@@ -824,6 +1133,7 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
             TRACE(
                 "Plugin %s wants midi. Tuff Shit. This is not something we worry about\n",
                 name.data());
+            // plugptr->setError("Midi plug-ins not supported", -1000);
             break;
         }
         case audioMasterAutomate:
@@ -1081,4 +1391,5 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
     // freePluginVst2xId(pluginId);
     return result;
 }
-}
+
+} // extern "C"

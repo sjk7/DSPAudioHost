@@ -43,24 +43,15 @@ namespace my {
     } // namespace strings
 } // namespace my
 
-static inline int filter_msvc_exceptions(
-    unsigned int code, struct _EXCEPTION_POINTERS* ep) {
-
-    if (code == EXCEPTION_ACCESS_VIOLATION) {
-        return EXCEPTION_EXECUTE_HANDLER;
-    }
-
-    else {
-        return EXCEPTION_CONTINUE_SEARCH;
-    };
-}
 class Plugin : public plugins_base {
 
     friend struct PlugEnumerator;
     struct data {
 
         bool has_header() const noexcept { return m_header != nullptr; }
-        void header_set(winampDSPHeader* p) { m_header = p; }
+        bool has_module() const noexcept { return m_module != nullptr; }
+        void header_set(winampDSPHeader* p) const { m_header = p; }
+        void module_set(winampDSPModule* mod) const { m_module = mod; }
         winampDSPHeader* header() { return m_header; }
         winampDSPModule* module() const noexcept { return m_module; }
         void module_set(winampDSPModule* p) { m_module = p; };
@@ -76,8 +67,8 @@ class Plugin : public plugins_base {
         HWND configHandleWindowGet() const noexcept { return m_config_hwnd; }
 
         private:
-        winampDSPHeader* m_header = nullptr;
-        winampDSPModule* m_module = nullptr;
+        mutable winampDSPHeader* m_header = nullptr;
+        mutable winampDSPModule* m_module = nullptr;
         std::wstring m_config_window_text;
         HWND m_config_hwnd = nullptr;
     };
@@ -85,7 +76,8 @@ class Plugin : public plugins_base {
 
     // HMODULE hinstance() const noexcept { return plugins_base::hinstance(); }
     bool has_header() const noexcept override { return m_data.has_header(); }
-    void quitModule(winampDSPModule* mod) {
+    bool has_module() const noexcept { return m_data.has_module(); }
+    void quitModule(winampDSPModule* mod) const {
         assert(mod);
 
         __try {
@@ -96,7 +88,7 @@ class Plugin : public plugins_base {
         }
     }
 
-    void configModule(winampDSPModule* mod) {
+    void configModule(winampDSPModule* mod) const {
         assert(mod);
         __try {
             mod->Config(mod);
@@ -121,7 +113,7 @@ class Plugin : public plugins_base {
         return;
     }
 
-    static inline void _create(
+    inline friend void _create(
         bool for_enumeration_only, Plugin& plug, HWND parent = ::GetDesktopWindow()) {
 
         std::string_view filepath = plug.filePath();
@@ -130,25 +122,32 @@ class Plugin : public plugins_base {
         plug.m_base_data.for_enumeration_only = for_enumeration_only;
         TRACE("--------------------------------------------------------------------\n");
         TRACE("Loading dsp plugin: %s\n", plug.m_base_data.filepath.data());
-        plug.hinstanceSet(::LoadLibraryA(plug.m_base_data.filepath.data()));
-        if (!plug.hinstance() || (int)plug.hinstance() == -1) {
-            plug.errorSet("LoadLibrary failed", GetLastError());
-            return;
-        }
+        if (plug.hinstance() == nullptr || (int)plug.hinstance() == -1) {
+            plug.hinstanceSet(::LoadLibraryA(plug.m_base_data.filepath.data()));
 
-        auto headertype = (winampDSPGetHeaderType)GetProcAddress(
-            plug.m_base_data.hinst, "winampDSPGetHeader2");
-
-        if (!headertype) {
-            headertype = (winampDSPGetHeaderType)GetProcAddress(
-                plug.hinstance(), "SPLGetDSPHeader2");
-            if (!headertype) {
-                plug.errorSet("No DSP dll header found", GetLastError());
+            if (!plug.hinstance() || (int)plug.hinstance() == -1) {
+                plug.errorSet("LoadLibrary failed", GetLastError());
                 return;
             }
         }
 
-        plug.m_data.header_set(headertype());
+        if (!plug.has_header()) {
+            auto headertype = (winampDSPGetHeaderType)GetProcAddress(
+                plug.m_base_data.hinst, "winampDSPGetHeader2");
+
+            if (!headertype) {
+                headertype = (winampDSPGetHeaderType)GetProcAddress(
+                    plug.hinstance(), "SPLGetDSPHeader2");
+                if (!headertype) {
+                    plug.errorSet("No DSP dll header found", GetLastError());
+                    return;
+                }
+            }
+
+            plug.m_data.header_set(headertype());
+        }
+
+        assert(plug.has_header());
 
         if (plug.m_data.header()->version > DSP_HDRVER) { //-V807
             plug.errorSet("Header version too great", -1);
@@ -160,7 +159,10 @@ class Plugin : public plugins_base {
             // when we are just getting stuff to show it as an available plugin,
             // do not keep the dll "open", otherwise you cannot delete unwanted plugs
             // in explorer whilst the app is running -- even if the plug is not activated!
-            plug.free_internal_structures();
+            plug.close(); // ignore clang warning about bypasses
+                          // dispatch
+            assert(!plug.has_header());
+            assert(plug.m_base_data.hinst == nullptr);
             return;
         }
 
@@ -177,7 +179,7 @@ class Plugin : public plugins_base {
         return;
     }
 
-    virtual void activate_guarded() override {
+    virtual void activate_guarded() const override {
 
         EXCEPTION_POINTERS* xp = nullptr;
         __try {
@@ -230,36 +232,70 @@ class Plugin : public plugins_base {
 #pragma warning(disable : 26800) // moved from, I know! I know!
     void test_move_assign_copy(std::string_view fp) {
         Plugin plug(false, fp);
-        Plugin copied = plug;
-        assert(plug.filePath() == copied.filePath());
-        assert(plug.hinstance());
-        assert(copied.hinstance());
+        const std::string filePath = plug.filePath();
+        const std::string desc = plug.description();
 
-        Plugin moved_into = std::move(plug);
+        assert(plug.has_header());
+        assert(plug.has_module());
+
+        Plugin copied = plug;
+        assert(plug.filePath() == fp);
+        assert(!plug.hinstance());
+        assert(copied.hinstance());
+        assert(!plug.has_header());
+        assert(!plug.has_module());
+        assert(copied.has_header());
+        assert(copied.has_module());
+
+        Plugin moved_into = std::move(copied);
         assert(moved_into.hinstance());
         assert(!plug.hinstance());
+        assert(moved_into.description() == desc);
+        assert(moved_into.filePath() == filePath);
+        assert(!copied.has_header());
+        assert(!copied.has_module());
+        assert(moved_into.has_header());
+        assert(moved_into.has_module());
 
         Plugin moved_constructed(std::move(moved_into));
         assert(moved_constructed.hinstance());
         assert(!moved_into.hinstance());
+        assert(moved_constructed.description() == desc);
+        assert(moved_constructed.filePath() == filePath);
+        assert(!moved_into.has_header());
+        assert(!moved_into.has_module());
+        assert(moved_constructed.has_header());
+        assert(moved_constructed.has_module());
 
-        Plugin constructed_from_copy(copied);
-        assert(constructed_from_copy.filePath() == copied.filePath());
+        Plugin constructed_from_copy(moved_constructed);
+        assert(constructed_from_copy.filePath() == filePath);
         assert(constructed_from_copy.hinstance());
-        assert(copied.hinstance());
+        assert(!moved_constructed.has_header());
+        assert(!moved_constructed.m_data.has_module());
+        // keeps the filename but gives up ownership of hinstance
+        assert(constructed_from_copy.hinstance());
+        assert(constructed_from_copy.has_header());
+        assert(constructed_from_copy.has_module());
 
-        plug = copied;
-        assert(plug.filePath() == copied.filePath());
-        assert(plug.hinstance() && copied.hinstance());
+        plug = constructed_from_copy;
+        assert(plug.filePath() == filePath);
+        assert(plug.hinstance() && !copied.hinstance());
 
         Plugin p(false, fp);
         plug = std::move(p);
-
+        assert(plug.has_header());
+        assert(plug.has_module());
+        assert(!p.has_header());
+        assert(!p.has_module());
+        assert(plug.filePath() == filePath);
+        assert(plug.hinstance() && !copied.hinstance());
         assert(plug.hinstance() && !p.hinstance());
     }
 #pragma warning(default : 26800)
 
 #endif
+
+    void close() { free_internal_structures(); }
 
     public:
     Plugin() {}
@@ -283,14 +319,21 @@ class Plugin : public plugins_base {
 
     void configHandleWindowSet(HWND h) { m_data.configHandleWindowSet(h); }
     HWND configHandleWindowGet() const noexcept { return m_data.configHandleWindowGet(); }
+    virtual HWND configHandle() const noexcept override {
+        return m_data.configHandleWindowGet();
+    }
 
-    auto& configHandleWindowText() const { return m_data.configHandleWindowText(); }
+    const std::wstring& configHandleWindowText() const override {
+        return m_data.configHandleWindowText();
+    }
 
     public:
     Plugin(const Plugin& other) : plugins_base(other), m_data() {
 
         create_guarded(
             other.m_base_data.for_enumeration_only, *this, other.m_base_data.parent);
+        other.m_data.header_set(nullptr);
+        other.m_data.module_set(nullptr);
     }
 
     Plugin(Plugin&& other) noexcept : plugins_base(std::move(other)), m_data() {
@@ -325,7 +368,7 @@ class Plugin : public plugins_base {
         return activated.do_activate();
     }
 
-    virtual void free_internal_structures() {
+    void free_internal_structures() {
         if (m_base_data.init_result >= 0) {
             if (m_data.module()) {
                 quitModule(m_data.module());
@@ -333,14 +376,17 @@ class Plugin : public plugins_base {
             }
         }
         m_data.header_set(nullptr);
-        // rest of cleanup now in base
+        this->base_clean();
     }
 
-    ~Plugin() { free_internal_structures(); }
+    virtual ~Plugin() { this->free_internal_structures(); }
+    virtual plugins_base::PlugType getType() const noexcept override {
+        return plugins_base::PlugType::Winamp_dsp;
+    }
 
     virtual int doDSP(void* const buf, const int frameCount,
         const portaudio_cpp::SampleRateType& sampleRate = 44100,
-        const portaudio_cpp::ChannelsType nch
+        const portaudio_cpp::ChannelsType& nch
         = portaudio_cpp::ChannelsType::MonoStereo::stereo,
         const int bps = 16) const override {
         assert(bps == 16); // winamp plugs can typically handle only 16-bit audio
@@ -354,7 +400,7 @@ class Plugin : public plugins_base {
     }
 
     // might throw std::runtime_error
-    int showConfig() {
+    virtual int showConfig() const override {
         if (m_base_data.init_result < 0) {
             errorSet("Plugins must be activated before show()ing config window", -1);
             throw std::runtime_error(
@@ -477,7 +523,7 @@ struct Host {
 #pragma warning(disable : 4130)
     Plugin* findActivatedPlug(const unsigned int index) {
         if (index >= m_activePlugins.size()) {
-            assert("findActivatedPlug: index out of bounds" == nullptr);
+            assert("findActivatedPlug: index out of bounds" == nullptr); //-V547
             return nullptr;
         }
         return &m_activePlugins[index];
@@ -494,18 +540,6 @@ struct Host {
             return true;
         }
         return false;
-    }
-
-    static inline constexpr const char* PLUG_SEP = "\x2";
-
-    std::string getActivePlugsAsString() const noexcept {
-        std::string ret;
-        for (const auto& p : m_activePlugins) {
-            ret += p.description();
-            ret += PLUG_SEP;
-        }
-
-        return ret;
     }
 
     void swapPlugins(int indexA, int indexB) {

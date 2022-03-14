@@ -75,9 +75,10 @@ BOOL CPBar::Create(const std::string& name, HINSTANCE hInstance, DWORD dwExStyle
 
     if (rc == 0) {
 #ifdef _DEBUG
-        DWORD dwLastError = GetLastError();
-        UNUSED_ALWAYS(dwLastError);
-        (void)dwLastError;
+        // DWORD dwLastError = GetLastError();
+        // (void)dwLastError;
+        // UNUSED_ALWAYS(dwLastError);
+
         // TRACE(_T("ERROR - Create failed, GetLastError() returned %u\n"), dwLastError);
         ASSERT(FALSE);
 #endif

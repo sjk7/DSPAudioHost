@@ -15,6 +15,68 @@
 #include "DSPHost.h"
 #include "VST.h"
 #include "PropSheet.h"
+#include <iostream>
+
+struct plugins {
+    using plugins_type = std::vector<const plugins_base*>;
+    plugins_type m_plugs;
+
+    void add(const plugins_base* plug) { m_plugs.push_back(plug); }
+    const auto size() const { return m_plugs.size(); }
+    const auto empty() const { return m_plugs.empty(); }
+    const auto begin() const noexcept { return m_plugs.begin(); }
+    const auto end() const noexcept { return m_plugs.end(); }
+
+    bool remove(const plugins_base* plug) {
+
+        const auto szb4 = m_plugs.size();
+
+        auto it = std::remove_if(
+            m_plugs.begin(), m_plugs.end(), [&](const auto& p) { return p == plug; });
+
+        bool ret = it != m_plugs.end();
+        assert(ret);
+        if (!ret) {
+            return ret;
+        }
+
+        m_plugs.erase(it, m_plugs.end());
+        assert(m_plugs.size() == szb4 - 1);
+        return ret;
+    }
+
+    static inline constexpr const char* PLUG_SEP = "\x2";
+
+    std::string getActivePlugsAsString() const noexcept {
+        std::string ret;
+        for (const auto& p : m_plugs) {
+            ret += p->description();
+            ret += PLUG_SEP;
+        }
+
+        return ret;
+    }
+
+    auto findActivatedPlugByDesc(std::string_view desc) {
+        auto it = std::find_if(m_plugs.begin(), m_plugs.end(),
+            [&](auto& p) { return p->description() == desc; });
+
+        if (it == m_plugs.end()) return (const plugins_base*)nullptr;
+
+        return *it;
+    }
+
+    auto findActivatedPlug(unsigned int idx) {
+        assert(idx < m_plugs.size());
+        if (idx >= m_plugs.size()) {
+
+        } else {
+            return m_plugs[idx];
+        }
+
+        return (const plugins_base*)nullptr;
+    }
+};
 
 class CSortMFCListCtrl : public CMFCListCtrl
 
@@ -39,6 +101,8 @@ class CSortMFCListCtrl : public CMFCListCtrl
 class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_interface {
     // Construction
     public:
+    plugins m_plugs;
+    vst::Plugins m_vsts;
     CDspAudioHostDlg(CWnd* pParent = nullptr); // standard constructor
     PASettings m_paSettings;
     vst::Plug* myplug{nullptr};
@@ -71,13 +135,13 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     const winamp_dsp::plugins_type& findAvailDSPs();
     void showAvailDSPs();
     void setUpButtons();
-    void addActivatedPlugToUI(const winamp_dsp::Plugin& plug);
+    void addActivatedPlugToUI(const plugins_base& plug);
     void removeActivatedPlugFromUI(int idx);
     void settingsSavePlugins();
     void settingsGetPlugins(bool apply = false);
     winamp_dsp::Host m_winamp_host;
-    winamp_dsp::Plugin* myActivatePlug(
-        winamp_dsp::Plugin* plug, bool addToUI = true, bool force_show = true);
+    plugins_base* myActivatePlug(
+        plugins_base* plug, bool addToUI = true, bool force_show = true);
     HWND FindPluginWindow(std::string_view desc);
     CBrush m_brush;
     CFont m_windows10Font;
@@ -211,8 +275,9 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
         const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags,
         const unsigned int byteCount) {
 
-        auto& plugs = m_winamp_host.activePlugins();
-        const auto nPlugs = plugs.size();
+        return 0; // FIXME
+        /*/
+        const auto nPlugs = m_plugs.size();
         const int nch_in = m_portaudio->m_inputParams.channelCount;
         const int nch_out = m_portaudio->m_outputParams.channelCount;
         const int nch_max = (std::max)(nch_in, nch_out);
@@ -243,18 +308,26 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
             }
         }
 
+        for (auto&& plug : m_plugs) {
+            (void)plug;
+            assert(0);
+        }
+
         // we always have a stereo buffer here:
         convertTo16bit((float* const)m_buf32in.data(), frameCount, 2, 32);
-        /*/
+
         for (auto& p : plugs) {
             p.doDSP((short* const)m_buf16.data(), frameCount, samplerate,
                 WINAMP_PLUG_CHANS, WINAMP_PLUG_BITDEPTH);
             mix(m_buf16, m_buf32, frameCount, nPlugs);
         }
-        /*/
 
-        myplug->doDSP(
-            m_buf32in.data(), frameCount, m_portaudio->sampleRate(), nch_in, 32);
+
+
+        myplug->doDSP((void*)m_buf32in.data(), frameCount, m_portaudio->sampleRate(),
+            portaudio_cpp::ChannelsType(portaudio_cpp::ChannelsType::MonoStereo(nch_in)),
+            32);
+
 
         m_buf32 = m_buf32in; // <--- TEST FOR VST: be sure to remove!
 
@@ -274,6 +347,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
         }
 
         return nPlugs;
+
+        /*/
     }
 
     CFont* myfontStore(UINT_PTR addr, BOOL destroy_all = false) {
@@ -304,7 +379,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
 
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
-    enum {IDD = IDD_DSPAUDIOHOST_DIALOG};
+    enum { IDD = IDD_DSPAUDIOHOST_DIALOG };
 #endif
 
     protected:
@@ -387,13 +462,13 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     afx_msg void OnSize(UINT nType, int cx, int cy);
     std::map<HWND, std::wstring> m_child_windowsA;
     std::map<HWND, std::wstring> m_child_windowsB;
-    winamp_dsp::Plugin& manageActivatePlug(winamp_dsp::Plugin&);
+    plugins_base* manageActivatePlug(plugins_base&);
     LRESULT OnThemeChanged();
     virtual BOOL OnWndMsg(
         UINT message, WPARAM wParam, LPARAM lParam, LRESULT* pResult) override;
     afx_msg void OnBnClickedBtnConfigAudio();
     void savePlugWindowPositions();
-    BOOL restorePlugWindowPosition(const winamp_dsp::Plugin& plugin);
+    BOOL restorePlugWindowPosition(const plugins_base& plugin);
     bool myPreparePlay(portaudio_cpp::AudioFormat& myfmt);
     virtual void OnCancel();
     virtual void OnOK();
@@ -401,6 +476,6 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     virtual void PreSubclassWindow();
     CTabCtrl tabAvailPlugs;
     void myTabSelChange(CTabCtrl& tab, int tabIndex);
-    CListCtrl lstAvailVST;
+    CMFCListCtrl listAvailVST;
     virtual BOOL OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult);
 };

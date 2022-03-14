@@ -106,7 +106,7 @@ void CDspAudioHostDlg::paSettingsSave() {
 }
 
 void CDspAudioHostDlg::saveMyPosition() {
-    WINDOWPLACEMENT mypos{0};
+    WINDOWPLACEMENT mypos = {};
     mypos.length = sizeof(mypos);
     if (GetWindowPlacement(&mypos)) {
         theApp.WriteProfileBinary(
@@ -235,7 +235,7 @@ void CDspAudioHostDlg::DoDataExchange(CDataExchange* pDX) {
     DDX_Control(pDX, IDC_CLIP, lblClip);
     DDX_Control(pDX, IDC_COMBO_SAMPLERATE, cboSampleRate);
     DDX_Control(pDX, IDC_TAB1, tabAvailPlugs);
-    DDX_Control(pDX, IDC_LIST_AVAIL_VST, lstAvailVST);
+    DDX_Control(pDX, IDC_LIST_AVAIL_VST, listAvailVST);
 }
 enum class special_chars : wchar_t {
     leftArrow = 223,
@@ -426,11 +426,12 @@ void CDspAudioHostDlg::myInitDialog() {
     assert(themed == S_OK);
 
     themed = ::SetWindowTheme(listCur.GetSafeHwnd(), L"explorer", nullptr);
-    ::SetWindowTheme(lstAvailVST.GetSafeHwnd(), L"explorer", nullptr);
+    ::SetWindowTheme(listAvailVST.GetSafeHwnd(), L"explorer", nullptr);
+
     CRect lstrect;
     listAvail.GetWindowRect(&lstrect);
     ScreenToClient(lstrect);
-    lstAvailVST.MoveWindow(lstrect);
+    listAvailVST.MoveWindow(lstrect);
 
     assert(themed == S_OK);
     findAvailDSPs();
@@ -564,6 +565,10 @@ const winamp_dsp::plugins_type& CDspAudioHostDlg::findAvailDSPs() {
     CStringA myroot(root);
     host.setParent(this->GetSafeHwnd());
     host.setFolder(myroot.GetBuffer());
+
+    vst::Plugins& plugs = m_vsts;
+    plugs.scanForPlugs();
+
     tracePlugins();
     return host.plugins();
 }
@@ -578,33 +583,43 @@ void clear_cols(CListCtrl& list) {
         }
     }
 }
+
+inline void insertListItem(CMFCListCtrl& lst, const plugins_base& d) {
+    const auto& desc = d.description();
+    if (!desc.empty()) {
+        CString wDesc(desc.data());
+        int cnt = lst.InsertItem(lst.GetItemCount(), wDesc);
+        auto ptr = (DWORD_PTR)d.description().data();
+        lst.SetItemData(cnt, ptr);
+    }
+}
 void CDspAudioHostDlg::showAvailDSPs() {
     const auto& dsps = m_winamp_host.plugins();
+    const auto& vsts = m_vsts.plugsAvailable();
 
-    lstAvailVST.DeleteAllItems();
+    listAvailVST.DeleteAllItems();
     listAvail.DeleteAllItems();
     clear_cols(listAvail);
     clear_cols(listCur);
-    clear_cols(lstAvailVST);
+    clear_cols(listAvailVST);
 
-    lstAvailVST.InsertColumn(0, L"Plugins available");
+    listAvailVST.InsertColumn(0, L"Plugins available");
     listAvail.InsertColumn(0, L"Plugins available");
     listCur.InsertColumn(0, L"Active plugins");
     assert(listAvail.GetHeaderCtrl());
 
     for (const auto& d : dsps) {
-        const auto& desc = d.description();
-        if (!desc.empty()) {
-            CString wDesc(desc.data());
-            int cnt = listAvail.InsertItem(listAvail.GetItemCount(), wDesc);
-            auto ptr = (DWORD_PTR)d.description().data();
-            listAvail.SetItemData(cnt, ptr);
-        }
+        insertListItem(listAvail, d);
+    }
+
+    for (const auto& d : vsts) {
+
+        insertListItem(listAvailVST, d);
     }
 
     listAvail.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
     listCur.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
-    lstAvailVST.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
+    listAvailVST.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
     if (listAvail.GetItemCount() > 0) {
         listAvail.SetItemState(0, LVIS_SELECTED, LVIS_SELECTED);
     }
@@ -784,8 +799,8 @@ END_MESSAGE_MAP()
 #pragma warning(default : 26454)
 
 RECT my_get_window_position(HWND hwnd) {
-    RECT rect{0};
-    WINDOWPLACEMENT wp{0};
+    RECT rect = {};
+    WINDOWPLACEMENT wp = {};
     wp.length = sizeof(WINDOWPLACEMENT);
     ASSERT(IsWindow(hwnd));
     ::GetWindowPlacement(hwnd, &wp);
@@ -817,6 +832,7 @@ static bool window_is_offscreen(HWND hwnd) {
 
 BOOL CDspAudioHostDlg::OnInitDialog() {
     CDialogEx::OnInitDialog();
+    // _CrtSetBreakAlloc(7611);
 
     CStringA tit = "DSPAudioHost (RC) Built at: ";
     tit += __TIME__;
@@ -827,7 +843,7 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     tabAvailPlugs.InsertItem(0, L"Winamp DSP Plugins");
     tabAvailPlugs.SetCurSel(0);
 
-    NONCLIENTMETRICS metrics{0};
+    NONCLIENTMETRICS metrics = {};
     metrics.cbSize = sizeof(NONCLIENTMETRICS);
     ::SystemParametersInfo(
         SPI_GETNONCLIENTMETRICS, sizeof(NONCLIENTMETRICS), &metrics, 0);
@@ -838,19 +854,18 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
     CStringW wtit(tit);
     SetWindowText(wtit);
 
-    // VST stuff: but it seems like a hell of a lot of work to save plugin settings, so
-    // stopped developing for now
-
     BOOL ret = myPropSheet.Create(this, &m_windows10Font);
     if (!ret) // Create failed.
         AfxMessageBox(L"Error creating Dialog");
-    myPropSheet.ShowWindow(SW_SHOW);
+    myPropSheet.ShowWindow(SW_HIDE);
 
-    myplug = new vst::Plug(myPropSheet.mypage[0], myPropSheet.GetSafeHwnd());
-    const auto& desc = myplug->description();
-    CString wt(desc.data());
-    myPropSheet.SetPageTitle(0, wt);
-    myPropSheet.SetWindowTextW(L"VST Plugins Properties");
+    // auto tabIndex = m_plugs.size();
+    // myplug = new vst::Plug(&myPropSheet, &myPropSheet.mypage[0], tabIndex);
+    // const auto& desc = myplug->description();
+    // CString wt(desc.data());
+    // myPropSheet.SetPageTitle(0, wt);
+    // myPropSheet.SetWindowTextW(L"VST Plugins Properties");
+    // this->addActivatedPlugToUI(*myplug);
     doEvents();
 
     sldVol.SetRange(0, 6000, TRUE);
@@ -894,13 +909,13 @@ BOOL CDspAudioHostDlg::OnInitDialog() {
 
     PostMessage(WM_FIRST_SHOWN);
 
-    WINDOWPLACEMENT wp{0};
+    WINDOWPLACEMENT wp = {};
     wp.length = sizeof(wp);
 
     UINT nSize = 0;
 
     LPBYTE pPlacementBytes = NULL;
-    WINDOWPLACEMENT orig{0};
+    WINDOWPLACEMENT orig = {};
     orig.length = sizeof(orig);
 
     GetWindowPlacement(&orig);
@@ -1214,10 +1229,11 @@ void CDspAudioHostDlg::showSamplerate() {
 
 void CDspAudioHostDlg::OnBnClickedBtnRefreshPlugs2() {}
 
-void CDspAudioHostDlg::addActivatedPlugToUI(const winamp_dsp::Plugin& plug) {
+void CDspAudioHostDlg::addActivatedPlugToUI(const plugins_base& plug) {
     CString ws(plug.description().data());
     auto count = listCur.GetItemCount();
     listCur.InsertItem(count, ws, 0);
+    m_plugs.add(&plug);
 
     count++;
     setUpDownButtonsState();
@@ -1239,18 +1255,18 @@ void CDspAudioHostDlg::removeActivatedPlugFromUI(int idx) {
     }
 }
 
-BOOL CDspAudioHostDlg::restorePlugWindowPosition(const winamp_dsp::Plugin& plug) {
+BOOL CDspAudioHostDlg::restorePlugWindowPosition(const plugins_base& plugin) {
 
-    HWND hwnd = find_plug_window(plug.configHandleWindowText());
+    HWND hwnd = find_plug_window(plugin.configHandleWindowText());
     ASSERT(hwnd);
     if (!IsWindow(hwnd)) {
-        hwnd = FindPluginWindow(plug.description());
+        hwnd = FindPluginWindow(plugin.description());
     }
 
     if (!IsWindow(hwnd)) return FALSE;
-    WINDOWPLACEMENT wp{0};
+    WINDOWPLACEMENT wp = {};
     wp.length = sizeof(wp);
-    CString wdesc(plug.description().data());
+    CString wdesc(plugin.description().data());
 
     UINT nSize = 0;
     BOOL ret = FALSE;
@@ -1280,35 +1296,38 @@ void CDspAudioHostDlg::savePlugWindowPositions() {
 
     saveMyPosition();
 
-    for (auto&& plug : m_winamp_host.activePlugins()) {
+    for (auto&& plug : m_plugs) {
 
-        HWND hwnd = plug.configHandleWindowGet();
+        HWND hwnd = plug->configHandle();
         if (!IsWindow(hwnd)) { // eg when user closes plugin window altogether
-            hwnd = find_plug_window(plug.configHandleWindowText());
+            hwnd = find_plug_window(plug->configHandleWindowText());
         }
         ASSERT(hwnd);
         if (!hwnd) {
-            hwnd = FindPluginWindow(plug.description());
+            hwnd = FindPluginWindow(plug->description());
         }
         ASSERT(hwnd);
         if (IsWindow(hwnd)) {
-            WINDOWPLACEMENT wp{0};
+            WINDOWPLACEMENT wp = {};
             wp.length = sizeof(wp);
 
             BOOL got = ::GetWindowPlacement(hwnd, &wp);
             ASSERT(got);
 
             if (got) {
-                CString wdesc(plug.description().data());
+                CString wdesc(plug->description().data());
                 theApp.WriteProfileBinary(
                     L"PlugWindowPositions", wdesc, (LPBYTE)(&wp), sizeof(wp));
             }
+        } else {
+
+            // window closed. So remember it this way
         }
     }
 }
 
 void CDspAudioHostDlg::settingsSavePlugins() {
-    std::string plugs = m_winamp_host.getActivePlugsAsString();
+    std::string plugs = m_plugs.getActivePlugsAsString();
     CString ws(plugs.data());
     theApp.WriteProfileStringW(L"WinampHost", L"ActivePlugs", ws);
 
@@ -1337,11 +1356,11 @@ void CDspAudioHostDlg::settingsGetPlugins(bool apply) {
     if (!plugs.IsEmpty()) {
         if (apply) {
             CStringA csa(plugs);
-            const char sep = *winamp_dsp::Host::PLUG_SEP;
+            const char sep = *plugins::PLUG_SEP;
             auto descriptions = winamp_dsp::my::strings::split(csa.GetBuffer(), sep);
             for (const auto& s : descriptions) {
                 auto ptr = m_winamp_host.findPlug(s);
-                auto existing = m_winamp_host.findActivatedPlugByDesc(s);
+                auto existing = m_plugs.findActivatedPlugByDesc(s);
                 if (!existing) {
                     if (ptr) {
                         myActivatePlug(ptr, true, false);
@@ -1375,13 +1394,26 @@ static inline BOOL CALLBACK EnumWindowsProcFindAllB(_In_ HWND hwnd, _In_ LPARAM 
     return TRUE;
 }
 
-winamp_dsp::Plugin& CDspAudioHostDlg::manageActivatePlug(winamp_dsp::Plugin& plug) {
+plugins_base* CDspAudioHostDlg::manageActivatePlug(plugins_base& plug) {
     m_child_windowsA.clear();
     m_child_windowsB.clear();
 
     EnumThreadWindows(GetCurrentThreadId(), EnumWindowsProcFindAllA, (LPARAM)this);
-    auto& activated = m_winamp_host.activatePlug(plug);
-    activated.showConfig();
+    plugins_base* pactivated = nullptr;
+    winamp_dsp::Plugin* pPlug = nullptr;
+
+    if (plug.getType() == plugins_base::PlugType::Winamp_dsp) {
+        pPlug = (winamp_dsp::Plugin*)&plug;
+        auto& activated = m_winamp_host.activatePlug(*pPlug);
+        pactivated = &activated;
+        pactivated->showConfig();
+    } else {
+        vst::Plug* pMyPlug = (vst::Plug*)&plug;
+        pactivated = m_vsts.activatePlug(*pMyPlug);
+        return pactivated; // return it since we do not need all the find window malarkey
+                           // below
+    }
+
     doEvents();
     EnumThreadWindows(GetCurrentThreadId(), EnumWindowsProcFindAllB, (LPARAM)this);
 
@@ -1401,17 +1433,17 @@ winamp_dsp::Plugin& CDspAudioHostDlg::manageActivatePlug(winamp_dsp::Plugin& plu
         if (parent == this_hwnd) {
             TRACE(L"Found plug window, with text: %s\n", pr.second.data());
             ASSERT(IsWindow(pr.first));
-            activated.configHandleWindowTextSet(pr.second);
-            activated.configHandleWindowSet(pr.first);
+            pPlug->configHandleWindowTextSet(pr.second);
+            pPlug->configHandleWindowSet(pr.first);
             break;
         }
     }
 
-    return activated;
+    return pactivated;
 }
 
-winamp_dsp::Plugin* CDspAudioHostDlg::myActivatePlug(
-    winamp_dsp::Plugin* plug, bool addToUI, bool force_show) {
+plugins_base* CDspAudioHostDlg::myActivatePlug(
+    plugins_base* plug, bool addToUI, bool force_show) {
 
     bool was_running = false;
     if (m_portaudio && m_portaudio->m_running) {
@@ -1426,35 +1458,42 @@ winamp_dsp::Plugin* CDspAudioHostDlg::myActivatePlug(
 
     try {
 
-        auto& activated = manageActivatePlug(*plug);
-        hwnd_found = find_plug_window(activated.configHandleWindowText());
+        auto activated = manageActivatePlug(*plug);
+        assert(activated != nullptr);
+        hwnd_found = find_plug_window(activated->configHandleWindowText());
 
-        if (!IsWindow(hwnd_found)) {
-            hwnd_found = FindPluginWindow(activated.description());
-        }
-
-        if (IsWindow(hwnd_found)) {
-            // annoying me that plug windows are ALL shown if we are restoring the dialog
-            BOOL set = ::SetWindowLongPtr(
-                hwnd_found, GWL_HWNDPARENT, (long)::GetDesktopWindow());
-            ASSERT(set);
-            (void)set;
-            restorePlugWindowPosition(activated);
-            if (force_show) {
-                ::BringWindowToTop(hwnd_found);
-                ::SetActiveWindow(hwnd_found);
-                ::ShowWindow(hwnd_found, SW_SHOWNORMAL);
+        if (activated->getType() == plugins_base::PlugType::Winamp_dsp) {
+            if (!IsWindow(hwnd_found)) {
+                hwnd_found = FindPluginWindow(activated->description());
             }
+
+            if (IsWindow(hwnd_found)) {
+                // annoying me that plug windows are ALL shown if we are restoring the
+                // dialog
+                BOOL set = ::SetWindowLongPtr(
+                    hwnd_found, GWL_HWNDPARENT, (long)::GetDesktopWindow());
+                ASSERT(set);
+                (void)set;
+                restorePlugWindowPosition(*activated);
+                if (force_show) {
+                    ::BringWindowToTop(hwnd_found);
+                    ::SetActiveWindow(hwnd_found);
+                    ::ShowWindow(hwnd_found, SW_SHOWNORMAL);
+                }
+            }
+        } else {
+            // VST types are hosting in property sheet and none of the dances above are
+            // required
         }
         if (addToUI) {
-            addActivatedPlugToUI(activated);
+            addActivatedPlugToUI(*activated);
             SetForegroundWindow();
         }
 
         if (was_running && m_portaudio) {
             portaudioStart();
         }
-        return &activated;
+        return activated;
     } catch (const std::exception& e) {
         MessageBoxA(m_hWnd, e.what(), "Error loading plugin", MB_OK);
     }
@@ -1609,11 +1648,19 @@ void CDspAudioHostDlg::OnBnClickedBtnRemove() {
             TRACE1("Item %d was selected!\n", nItem);
             CString ws = listCur.GetItemText(nItem, 0);
             if (!ws.IsEmpty()) {
-                const auto* found = m_winamp_host.findActivatedPlug(nItem);
+                const auto&& found = m_plugs.findActivatedPlug(nItem);
                 if (found == nullptr) { //-V547
-                    MessageBox(L"Unexpected, cannot find activate plugin");
+                    MessageBox(L"Unexpected, cannot find activated plugin");
                 } else {
-                    bool removed = m_winamp_host.removeActivatedPlug(found);
+                    bool removed = false;
+                    m_plugs.remove(found);
+                    if (found->getType() == plugins_base::PlugType::Winamp_dsp) {
+                        removed = m_winamp_host.removeActivatedPlug(
+                            (winamp_dsp::Plugin*)found);
+                    } else {
+                        // FIXME: vst host needs to remove plug
+                        ASSERT(0);
+                    }
 
                     if (removed) {
                         removeActivatedPlugFromUI(nItem);
@@ -1636,17 +1683,24 @@ void CDspAudioHostDlg::myCurListShowConfig(int idx) {
     if (idx < 0) {
         MessageBox(L"First select a plugin in the active plugin list");
     } else {
-        auto plug = m_winamp_host.findActivatedPlug(idx);
+        auto plug = m_plugs.findActivatedPlug(idx);
         if (!plug) {
             MessageBox(L"Unexpected: could not find the plugin");
         } else {
             plug->showConfig();
-            auto hWnd = find_plug_window(plug->configHandleWindowText());
-            if (!IsWindow(hWnd)) {
-                hWnd = FindPluginWindow(plug->description()); //-V1048
-            }
-            if (IsWindow(hWnd)) {
-                centreWindowOnMe(hWnd, GetSafeHwnd());
+            if (plug->getType() == plugins_base::PlugType::Winamp_dsp) {
+                auto hWnd = find_plug_window(plug->configHandleWindowText());
+                if (!IsWindow(hWnd)) {
+                    hWnd = FindPluginWindow(plug->description()); //-V1048
+                }
+                if (IsWindow(hWnd)) {
+                    centreWindowOnMe(hWnd, GetSafeHwnd());
+                }
+            } else {
+                // not a winamp plug!
+                if (IsWindow(plug->configHandle())) {
+                    centreWindowOnMe(plug->configHandle(), GetSafeHwnd());
+                }
             }
         }
     }
@@ -1707,7 +1761,7 @@ static inline BOOL CenterWindow(HWND hwndWindow, int topOffset = 0) {
         GetWindowRect(hwndWindow, &rectWindow);
         GetWindowRect(hwndParent, &rectParent);
 
-        WINDOWPLACEMENT wp{0};
+        WINDOWPLACEMENT wp = {};
         wp.length = sizeof(WINDOWPLACEMENT);
         BOOL gotp = ::GetWindowPlacement(hwndWindow, &wp);
         ASSERT(gotp);
@@ -2174,8 +2228,8 @@ void CDspAudioHostDlg::pbar_ctrl_create(BOOL double_buffered, const std::string&
                "the wrong one?"
             == 0);
     }
-    pbar.Create(name, AfxGetInstanceHandle(), 0, WS_CHILD | WS_VISIBLE & ~WS_BORDER, rect,
-        this, idctrl);
+    pbar.Create(name, AfxGetInstanceHandle(), 0, (WS_CHILD | WS_VISIBLE) & (~WS_BORDER),
+        rect, this, idctrl);
     pbar.orientation_set(CPBar::orientation_t::vertical);
     pbar.maximum_set(10000);
     pbar.smooth_set(false);
@@ -2342,10 +2396,10 @@ void CDspAudioHostDlg::PreSubclassWindow() {
 void CDspAudioHostDlg::myTabSelChange(CTabCtrl& tab, int tabIndex) {
     if (tabIndex == 0) {
         listAvail.ShowWindow(TRUE);
-        lstAvailVST.ShowWindow(FALSE);
+        listAvailVST.ShowWindow(FALSE);
     } else {
         listAvail.ShowWindow(FALSE);
-        lstAvailVST.ShowWindow(TRUE);
+        listAvailVST.ShowWindow(TRUE);
     }
 }
 
@@ -2354,21 +2408,21 @@ BOOL CDspAudioHostDlg::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult) 
     NMHDR* pNMHDR = (NMHDR*)lParam;
     BOOL callParent = TRUE;
 
-    if (pNMHDR->hwndFrom == listAvail) {
+    if (pNMHDR->hwndFrom == listAvailVST) {
 
         static bool bHighlighted = TRUE;
         LPNMLVCUSTOMDRAW lpLVCustomDraw = reinterpret_cast<LPNMLVCUSTOMDRAW>(pNMHDR);
         NMCUSTOMDRAW nmcd = lpLVCustomDraw->nmcd;
 
         *pResult = CDRF_DODEFAULT;
-        auto nmh = *pNMHDR;
+        // auto nmh = *pNMHDR;
 
         switch (lpLVCustomDraw->nmcd.dwDrawStage) {
             case CDDS_PREPAINT: *pResult = CDRF_NOTIFYITEMDRAW; break;
             case CDDS_ITEMPREPAINT: {
-                int row = nmcd.dwItemSpec;
-                bHighlighted = row % 2 == 0;
-                if (bHighlighted) {
+                // int row = nmcd.dwItemSpec;
+                //  bHighlighted = row % 2 == 0;
+                if (true) {
                     lpLVCustomDraw->clrText = RGB(0, 100, 0);
                     // EnableHighlighting(row, false);
                     *pResult = CDRF_DODEFAULT | CDRF_NOTIFYPOSTPAINT;

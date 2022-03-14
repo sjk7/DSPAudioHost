@@ -15,7 +15,7 @@
 
 IMPLEMENT_DYNAMIC(PropPage, CMFCPropertyPage)
 
-PropPage::PropPage(CWnd* pParent /*=nullptr*/) : CMFCPropertyPage(IDD_MYPROPPAGE, 0) {}
+PropPage::PropPage(CWnd* /*=nullptr*/) : CMFCPropertyPage(IDD_MYPROPPAGE, 0) {}
 
 PropPage::~PropPage() {}
 
