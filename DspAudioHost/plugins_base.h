@@ -92,12 +92,12 @@ struct plugins_base {
     int lastError() const noexcept { return m_base_data.lastError; }
     HMODULE hinstance() const noexcept { return m_base_data.hinst; }
 
-    // public functions you must override:
     virtual int doDSP(void* const buf, const int frameCount,
         const portaudio_cpp::SampleRateType& sampleRate = 44100,
         const portaudio_cpp::ChannelsType& nch
         = portaudio_cpp::ChannelsType::MonoStereo::stereo,
-        const int bps = 16) const = 0;
+        const int bps = 16) const
+        = 0;
 
     virtual bool has_header() const noexcept = 0;
     virtual PlugType getType() const noexcept = 0; // enforce plugtype in plug

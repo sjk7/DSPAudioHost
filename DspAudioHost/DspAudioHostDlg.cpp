@@ -987,7 +987,7 @@ void CDspAudioHostDlg::OnSysCommand(UINT nID, LPARAM lParam) {
 
             OnClose();
             EndDialog(IDOK); // Close the dialog with IDOK (or IDCANCEL)
-            delete myplug;
+            // delete myplug;
 
         } else {
             CDialog::OnSysCommand(nID, lParam);
@@ -1233,7 +1233,6 @@ void CDspAudioHostDlg::addActivatedPlugToUI(const plugins_base& plug) {
     CString ws(plug.description().data());
     auto count = listCur.GetItemCount();
     listCur.InsertItem(count, ws, 0);
-    m_plugs.add(&plug);
 
     count++;
     setUpDownButtonsState();
@@ -1296,8 +1295,10 @@ void CDspAudioHostDlg::savePlugWindowPositions() {
 
     saveMyPosition();
 
-    for (auto&& plug : m_plugs) {
+    for (auto& base : m_active_plugs) {
 
+        // plugins_base* plug = std::get<plugins_base*>(base);
+        const plugins_base* plug = variant_plugs::get_base(base);
         HWND hwnd = plug->configHandle();
         if (!IsWindow(hwnd)) { // eg when user closes plugin window altogether
             hwnd = find_plug_window(plug->configHandleWindowText());
@@ -1327,7 +1328,7 @@ void CDspAudioHostDlg::savePlugWindowPositions() {
 }
 
 void CDspAudioHostDlg::settingsSavePlugins() {
-    std::string plugs = m_plugs.getActivePlugsAsString();
+    std::string plugs = m_active_plugs.getPlugsAsString();
     CString ws(plugs.data());
     theApp.WriteProfileStringW(L"WinampHost", L"ActivePlugs", ws);
 
@@ -1356,11 +1357,12 @@ void CDspAudioHostDlg::settingsGetPlugins(bool apply) {
     if (!plugs.IsEmpty()) {
         if (apply) {
             CStringA csa(plugs);
-            const char sep = *plugins::PLUG_SEP;
-            auto descriptions = winamp_dsp::my::strings::split(csa.GetBuffer(), sep);
+
+            auto descriptions = winamp_dsp::my::strings::split(
+                csa.GetBuffer(), variant_plugs::PLUG_SEP);
             for (const auto& s : descriptions) {
                 auto ptr = m_winamp_host.findPlug(s);
-                auto existing = m_plugs.findActivatedPlugByDesc(s);
+                auto existing = m_active_plugs.findActivatedPlugByDesc(s);
                 if (!existing) {
                     if (ptr) {
                         myActivatePlug(ptr, true, false);
@@ -1404,12 +1406,18 @@ plugins_base* CDspAudioHostDlg::manageActivatePlug(plugins_base& plug) {
 
     if (plug.getType() == plugins_base::PlugType::Winamp_dsp) {
         pPlug = (winamp_dsp::Plugin*)&plug;
-        auto& activated = m_winamp_host.activatePlug(*pPlug);
-        pactivated = &activated;
+        auto activated = m_winamp_host.activatePlugForExternalStorage(*pPlug);
+        auto& what = m_active_plugs.m_plugs.emplace_back(std::move(activated));
+        pactivated = &(std::get<winamp_dsp::Plugin>(what));
         pactivated->showConfig();
     } else {
-        vst::Plug* pMyPlug = (vst::Plug*)&plug;
-        pactivated = m_vsts.activatePlug(*pMyPlug);
+        vst::Plug* pMyPlug = dynamic_cast<vst::Plug*>(&plug);
+        assert(pMyPlug);
+        if (!pMyPlug) return nullptr;
+        auto activated
+            = m_vsts.activatePlug(*pMyPlug, &myPropSheet, &myPropSheet.mypage[0], 0);
+        auto& what = m_active_plugs.m_plugs.emplace_back(std::move(activated));
+        pactivated = &(std::get<vst::Plug>(what));
         return pactivated; // return it since we do not need all the find window malarkey
                            // below
     }
@@ -1472,7 +1480,7 @@ plugins_base* CDspAudioHostDlg::myActivatePlug(
                 // dialog
                 BOOL set = ::SetWindowLongPtr(
                     hwnd_found, GWL_HWNDPARENT, (long)::GetDesktopWindow());
-                ASSERT(set);
+                // ASSERT(set);
                 (void)set;
                 restorePlugWindowPosition(*activated);
                 if (force_show) {
@@ -1496,6 +1504,14 @@ plugins_base* CDspAudioHostDlg::myActivatePlug(
         return activated;
     } catch (const std::exception& e) {
         MessageBoxA(m_hWnd, e.what(), "Error loading plugin", MB_OK);
+
+        if (plug) {
+            auto p = m_active_plugs.findActivatedPlugByDesc(plug->description());
+            if (p) {
+                m_active_plugs.remove(p);
+                settingsSavePlugins();
+            }
+        }
     }
 
     return nullptr;
@@ -1574,14 +1590,22 @@ void CDspAudioHostDlg::saveOutput() {
 void CDspAudioHostDlg::OnBnClickedBtnAdd() {
 
     CCmdTarget::BeginWaitCursor();
-    POSITION pos = this->listAvail.GetFirstSelectedItemPosition();
+    auto* lst = &this->listAvail;
+    // use the selected tabpage to decide which list we mean.
+    int sel = tabAvailPlugs.GetCurSel();
+    if (sel != 0) {
+        lst = (CMFCListCtrl*)&this->listAvailVST;
+    }
+
+    POSITION pos = lst->GetFirstSelectedItemPosition();
+
     if (pos == NULL) {
         MessageBox(L"You need to select at least one plugin on the left list first.");
     } else {
         while (pos) {
-            int nItem = listAvail.GetNextSelectedItem(pos);
+            int nItem = lst->GetNextSelectedItem(pos);
             TRACE1("Item %d was selected!\n", nItem);
-            CString ws = listAvail.GetItemText(nItem, 0);
+            CString ws = lst->GetItemText(nItem, 0);
             CStringA wsa(ws);
             auto existing = m_winamp_host.findActivatedPlugByDesc(wsa.GetBuffer());
 
@@ -1607,7 +1631,15 @@ void CDspAudioHostDlg::OnBnClickedBtnAdd() {
             }
             if (!ws.IsEmpty()) {
 
-                auto* found = m_winamp_host.findPlug(wsa.GetBuffer());
+                plugins_base* found = m_winamp_host.findPlug(wsa.GetBuffer());
+                if (!found) {
+                    for (auto& p : m_vsts.m_plugsAvailable) {
+                        if (p.description() == wsa.GetBuffer()) {
+                            found = &p;
+                            break;
+                        }
+                    }
+                }
                 if (!found) {
                     MessageBox(L"Unexpected, cannot find plugin");
                 } else {
@@ -1648,20 +1680,11 @@ void CDspAudioHostDlg::OnBnClickedBtnRemove() {
             TRACE1("Item %d was selected!\n", nItem);
             CString ws = listCur.GetItemText(nItem, 0);
             if (!ws.IsEmpty()) {
-                const auto&& found = m_plugs.findActivatedPlug(nItem);
+                const auto&& found = this->m_active_plugs.findActivatedPlug(nItem);
                 if (found == nullptr) { //-V547
                     MessageBox(L"Unexpected, cannot find activated plugin");
                 } else {
-                    bool removed = false;
-                    m_plugs.remove(found);
-                    if (found->getType() == plugins_base::PlugType::Winamp_dsp) {
-                        removed = m_winamp_host.removeActivatedPlug(
-                            (winamp_dsp::Plugin*)found);
-                    } else {
-                        // FIXME: vst host needs to remove plug
-                        ASSERT(0);
-                    }
-
+                    bool removed = m_active_plugs.remove(found);
                     if (removed) {
                         removeActivatedPlugFromUI(nItem);
                         settingsSavePlugins();
@@ -1683,7 +1706,7 @@ void CDspAudioHostDlg::myCurListShowConfig(int idx) {
     if (idx < 0) {
         MessageBox(L"First select a plugin in the active plugin list");
     } else {
-        auto plug = m_plugs.findActivatedPlug(idx);
+        auto plug = m_active_plugs.findActivatedPlug(idx);
         if (!plug) {
             MessageBox(L"Unexpected: could not find the plugin");
         } else {

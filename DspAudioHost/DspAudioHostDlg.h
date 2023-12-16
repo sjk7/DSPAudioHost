@@ -16,65 +16,72 @@
 #include "VST.h"
 #include "PropSheet.h"
 #include <iostream>
+#include <variant>
 
-struct plugins {
-    using plugins_type = std::vector<const plugins_base*>;
-    plugins_type m_plugs;
+using variant_plug = std::variant<winamp_dsp::Plugin, vst::Plug>;
+using variant_plugs_list = std::vector<variant_plug>;
 
-    void add(const plugins_base* plug) { m_plugs.push_back(plug); }
-    const auto size() const { return m_plugs.size(); }
-    const auto empty() const { return m_plugs.empty(); }
-    const auto begin() const noexcept { return m_plugs.begin(); }
-    const auto end() const noexcept { return m_plugs.end(); }
+struct variant_plugs {
 
-    bool remove(const plugins_base* plug) {
+    static inline constexpr const char PLUG_SEP = '\t';
+    variant_plugs_list m_plugs;
+    // variant_plugs() { m_plugs.reserve(6); }
 
-        const auto szb4 = m_plugs.size();
+    auto begin() const noexcept { return m_plugs.begin(); }
+    auto end() const noexcept { return m_plugs.end(); }
+    auto begin() { return m_plugs.begin(); }
+    auto end() { return m_plugs.end(); }
 
-        auto it = std::remove_if(
-            m_plugs.begin(), m_plugs.end(), [&](const auto& p) { return p == plug; });
+    static inline const plugins_base* get_base(const variant_plug& v) {
+        const plugins_base* base = nullptr;
+        std::visit(
+            [&](auto& value) { base = static_cast<const plugins_base*>(&value); }, v);
+        return base;
+    }
 
-        bool ret = it != m_plugs.end();
-        assert(ret);
-        if (!ret) {
-            return ret;
+    inline bool remove(const plugins_base* plugBase) {
+        size_t cnt = m_plugs.size();
+        auto it
+            = std::remove_if(m_plugs.begin(), m_plugs.end(), // compare addresses to find
+                [&](const auto& p) { return get_base(p) == plugBase; });
+
+        if (it == m_plugs.end()) {
+            assert("Plug not found to remove" == nullptr);
+            return false;
         }
 
         m_plugs.erase(it, m_plugs.end());
-        assert(m_plugs.size() == szb4 - 1);
-        return ret;
+        assert(m_plugs.size() == cnt - 1);
+        return true;
     }
 
-    static inline constexpr const char* PLUG_SEP = "\x2";
+    inline const plugins_base* findActivatedPlugByDesc(
+        std::string_view desc) const noexcept {
 
-    std::string getActivePlugsAsString() const noexcept {
+        for (const auto& plug : m_plugs) {
+            auto c = get_base(plug);
+            if (c->description() == desc) {
+                return c;
+            }
+        }
+
+        return (plugins_base*)nullptr;
+    }
+
+    inline const plugins_base* findActivatedPlug(unsigned int index) const noexcept {
+        assert(index <= m_plugs.size());
+        auto& p = m_plugs.at(index);
+        return get_base(p);
+    }
+
+    inline std::string getPlugsAsString() const noexcept {
         std::string ret;
-        for (const auto& p : m_plugs) {
+        for (const auto& plug : m_plugs) {
+            auto* p = get_base(plug);
             ret += p->description();
             ret += PLUG_SEP;
         }
-
         return ret;
-    }
-
-    auto findActivatedPlugByDesc(std::string_view desc) {
-        auto it = std::find_if(m_plugs.begin(), m_plugs.end(),
-            [&](auto& p) { return p->description() == desc; });
-
-        if (it == m_plugs.end()) return (const plugins_base*)nullptr;
-
-        return *it;
-    }
-
-    auto findActivatedPlug(unsigned int idx) {
-        assert(idx < m_plugs.size());
-        if (idx >= m_plugs.size()) {
-
-        } else {
-            return m_plugs[idx];
-        }
-
-        return (const plugins_base*)nullptr;
     }
 };
 
@@ -101,11 +108,14 @@ class CSortMFCListCtrl : public CMFCListCtrl
 class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_interface {
     // Construction
     public:
-    plugins m_plugs;
+    // plugins m_plugs;
+
+    variant_plugs m_active_plugs;
     vst::Plugins m_vsts;
+    winamp_dsp::Host m_winamp_host;
     CDspAudioHostDlg(CWnd* pParent = nullptr); // standard constructor
     PASettings m_paSettings;
-    vst::Plug* myplug{nullptr};
+
     PropSheet myPropSheet;
     void paSettingsSave();
     CRect m_sizeRect;
@@ -139,7 +149,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     void removeActivatedPlugFromUI(int idx);
     void settingsSavePlugins();
     void settingsGetPlugins(bool apply = false);
-    winamp_dsp::Host m_winamp_host;
+
     plugins_base* myActivatePlug(
         plugins_base* plug, bool addToUI = true, bool force_show = true);
     HWND FindPluginWindow(std::string_view desc);
@@ -275,9 +285,9 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
         const PaStreamCallbackTimeInfo* timeInfo, PaStreamCallbackFlags statusFlags,
         const unsigned int byteCount) {
 
-        return 0; // FIXME
-        /*/
-        const auto nPlugs = m_plugs.size();
+        // return 0; // FIXME
+
+        const auto nPlugs = this->m_active_plugs.m_plugs.size();
         const int nch_in = m_portaudio->m_inputParams.channelCount;
         const int nch_out = m_portaudio->m_outputParams.channelCount;
         const int nch_max = (std::max)(nch_in, nch_out);
@@ -285,7 +295,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
 
         // const auto sampleRate = m_portaudio->sampleRate();
         static constexpr int WINAMP_PLUG_BITDEPTH = 16;
-        static constexpr int WINAMP_PLUG_CHANS = 2;
+        static constexpr int VST_PLUG_BITDEPTH = 32;
+        static constexpr auto WINAMP_PLUG_CHANS = portaudio_cpp::ChannelsType::stereo;
         m_buf32in.resize(frameCount * nch_in); //-V525
         m_buf32.resize(frameCount * nch_max);
         m_buf16.resize(frameCount * nch_max);
@@ -308,28 +319,27 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
             }
         }
 
-        for (auto&& plug : m_plugs) {
-            (void)plug;
-            assert(0);
-        }
+        auto& plugs = this->m_active_plugs;
 
         // we always have a stereo buffer here:
         convertTo16bit((float* const)m_buf32in.data(), frameCount, 2, 32);
 
-        for (auto& p : plugs) {
-            p.doDSP((short* const)m_buf16.data(), frameCount, samplerate,
-                WINAMP_PLUG_CHANS, WINAMP_PLUG_BITDEPTH);
-            mix(m_buf16, m_buf32, frameCount, nPlugs);
+        for (unsigned i = 0; i < plugs.m_plugs.size(); ++i) {
+            auto d = plugs.findActivatedPlug(i);
+            if (d->getType() == plugins_base::PlugType::Winamp_dsp) {
+                d->doDSP((short* const)m_buf16.data(), frameCount, samplerate,
+                    WINAMP_PLUG_CHANS, WINAMP_PLUG_BITDEPTH);
+                mix(m_buf16, m_buf32, frameCount, nPlugs);
+            } else {
+
+                d->doDSP((float* const)m_buf32.data(), frameCount, samplerate,
+                    WINAMP_PLUG_CHANS, VST_PLUG_BITDEPTH);
+                // mix(m_buf32, m_buf32, frameCount, nPlugs);
+                // What to do here, Steve?
+            }
         }
 
-
-
-        myplug->doDSP((void*)m_buf32in.data(), frameCount, m_portaudio->sampleRate(),
-            portaudio_cpp::ChannelsType(portaudio_cpp::ChannelsType::MonoStereo(nch_in)),
-            32);
-
-
-        m_buf32 = m_buf32in; // <--- TEST FOR VST: be sure to remove!
+        // m_buf32 = m_buf32in; // <--- TEST FOR VST: be sure to remove!
 
         if (nPlugs) {
             if (nch_in == nch_out) {
@@ -347,8 +357,6 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
         }
 
         return nPlugs;
-
-        /*/
     }
 
     CFont* myfontStore(UINT_PTR addr, BOOL destroy_all = false) {
@@ -379,7 +387,7 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
 
 // Dialog Data
 #ifdef AFX_DESIGN_TIME
-    enum { IDD = IDD_DSPAUDIOHOST_DIALOG };
+    enum {IDD = IDD_DSPAUDIOHOST_DIALOG};
 #endif
 
     protected:
@@ -417,7 +425,8 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     afx_msg void OnBnClickedBtnRefreshPlugs();
     afx_msg LRESULT OnDialogShown(WPARAM w, LPARAM l);
     afx_msg void OnBnClickedBtnRefreshPlugs2();
-    CSortMFCListCtrl listAvail;
+    CMFCListCtrl listAvail;
+    CMFCListCtrl listAvailVST;
     CMFCListCtrl listCur;
     CMFCButton btnUp;
     CMFCButton btnDown;
@@ -476,6 +485,6 @@ class CDspAudioHostDlg : public CDialogEx, public portaudio_cpp::notification_in
     virtual void PreSubclassWindow();
     CTabCtrl tabAvailPlugs;
     void myTabSelChange(CTabCtrl& tab, int tabIndex);
-    CMFCListCtrl listAvailVST;
+
     virtual BOOL OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult);
 };

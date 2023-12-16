@@ -2,6 +2,6 @@
 
 Name: Right Output.
 Drawing inverted image: 1.
-nTimes: 9238.
-Time spent in func: 1005.
-Avg time in func: 0.10879 ms.
+nTimes: 209.
+Time spent in func: 33.
+Avg time in func: 0.157895 ms.

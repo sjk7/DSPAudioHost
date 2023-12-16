@@ -513,11 +513,22 @@ struct Host {
         return nullptr;
     }
 
-    // can throw std::runtime_error
+    // can throw std::runtime_error.
+    // Holds plugin inside out own activaPlugs() collection
     Plugin& activatePlug(Plugin& plug) {
         Plugin activated;
         plug.activate(plug, activated);
         return m_activePlugins.emplace_back(std::move(activated));
+    }
+
+    // can throw std::runtime_error.
+    // Caller is responsible for keeping the returned plug alive (in his own vector, for
+    // example)
+    Plugin activatePlugForExternalStorage(Plugin& plug) {
+
+        Plugin activated;
+        plug.activate(plug, activated);
+        return activated;
     }
 
 #pragma warning(disable : 4130)

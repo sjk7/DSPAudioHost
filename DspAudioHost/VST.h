@@ -88,7 +88,7 @@ static inline void logDeprecated(const char* s, const char* s2) {
     ::OutputDebugStringA(str.c_str());
 }
 
-static inline AEffect* loadPlugin(
+static inline AEffect* __stdcall loadPlugin(
     vst::Plug* plug, const char* vstPath, HMODULE& modulePtr);
 
 static inline AEffect* configurePlugin(AEffect* plugin) {
@@ -245,6 +245,7 @@ inline bool loadChunkDataProg(std::string_view filepath, AEffect* plugin) {
     long lSize = ftell(pFile);
     rewind(pFile);
     const auto sz = sizeof(fxProgram);
+    (void)sz;
     fxProgram* header
         = (fxProgram*)malloc(lSize); // is this even legal? Well yes, since fxProgram has
                                      // a flexible sized C array at the end!
@@ -546,6 +547,7 @@ namespace detail {
             // You might need a better hash function than this
             size_t h = 0;
             std::for_each(Keyval.begin(), Keyval.end(), [&](char c) { h += tolower(c); });
+            // std::hash h(Keyval);
             return h;
         }
     };
@@ -565,18 +567,16 @@ struct Plugins;
 class Plug : public plugins_base {
     friend struct Plugins;
 
-    Plug() = default; // note it is private. And no, you may not call this one!
-    // Plug& operator=(const Plug& rhs) = default;
-    Plug& operator=(Plug other) {
-        assert(0); // allow this, or not?
-        using std::swap;
-        swap(*this, other);
-        return *this;
-    }
-
     inline friend void swap(Plug& p1, Plug& p2) {
         using std::swap;
         swap(p1.m_internal, p2.m_internal);
+    }
+
+    Plug activate(
+        PropSheet* tabctrl, PropPage* propPage, int tabNum, std::string_view filepath) {
+        Plug ret(tabctrl, propPage, tabNum, filepath);
+
+        return ret;
     }
 
     static inline auto does_not_work
@@ -648,8 +648,40 @@ class Plug : public plugins_base {
     virtual void activate_guarded() const override { // show the plugin;
         ASSERT(0);
     }
+    Plug() = default; // note it is private. And no, you may not call this one!
+                      // needs to be public for vector of variants including this type
+    // Plug& operator=(const Plug& other) {
+    //     assert(0); // allow this, or not?
+    //     using std::swap;
+    //  swap(*this, other);
+    //    return *this;
+    // }
 
     public:
+    Plug(Plug&& rhs) noexcept : plugins_base(std::move(rhs)) {
+        using std::swap;
+        swap(m_internal, rhs.m_internal);
+        // using  moved-fromo object, I know!
+        assert(rhs.m_internal.effect == nullptr);
+        assert(rhs.m_base_data.hinst == nullptr);
+    }
+
+    Plug& operator=(Plug&& other) {
+        using namespace std;
+        assert("Check me to see if I am correct" == 0);
+        this->m_base_data = std::move(other.m_base_data);
+        m_internal = std::move(other.m_internal);
+        return *this;
+    }
+
+    // must be here else vector complains
+    Plug(const Plug& rhs) noexcept : plugins_base(rhs) {
+        // if one is copied, rhs must give up its ownership
+        m_internal = rhs.m_internal;
+        rhs.m_internal.effect = nullptr;
+        rhs.m_internal.audioDataSize = 0;
+    }
+
     virtual int doDSP(void* const buf, const int frameCount,
         const portaudio_cpp::SampleRateType& sampleRate,
         const portaudio_cpp::ChannelsType& nch, const int bps) const override {
@@ -774,22 +806,6 @@ class Plug : public plugins_base {
                 = nullptr; // should flag a warning if sum1 tries to use later!
         }
         return ret;
-    }
-
-    Plug(Plug&& rhs) noexcept : plugins_base(std::move(rhs)) {
-        using std::swap;
-        swap(m_internal, rhs.m_internal);
-        // using  moved-fromo object, I know!
-        assert(rhs.m_internal.effect == nullptr);
-        assert(rhs.m_base_data.hinst == nullptr);
-    }
-
-    // must be here else vector complains
-    Plug(const Plug& rhs) noexcept : plugins_base(rhs) {
-        // if one is copied, rhs must give up its ownership
-        m_internal = rhs.m_internal;
-        rhs.m_internal.effect = nullptr;
-        rhs.m_internal.audioDataSize = 0;
     }
 
     void cleanup() {
@@ -918,6 +934,7 @@ class Plug : public plugins_base {
         m_internal.ctr++;
 
         const auto nfloats = frameCount * nch;
+        (void)nfloats;
         if (m_internal.audioDataSize != frameCount) {
             if (m_internal.audioDataSize) {
                 delete[] m_internal.planarData[0];
@@ -998,9 +1015,9 @@ struct Plugins {
     }
 
     // this means take plug p (who is enum-only plug) and instantiate
-    Plug* activatePlug(const Plug& p) {
-        assert(0);
-        return nullptr;
+    Plug activatePlug(const Plug& p, PropSheet* tabctrl, PropPage* propPage, int tabNum) {
+        auto ret = Plug(p);
+        return ret.activate(tabctrl, propPage, tabNum, p.filePath());
     }
 
     private:
@@ -1062,7 +1079,7 @@ struct Plugins {
 
 } // namespace vst
 
-static inline AEffect* loadPlugin(
+static inline AEffect* __stdcall loadPlugin(
     vst::Plug* plug, const char* vstPath, HMODULE& modulePtr) {
 
     AEffect* plugin = nullptr;
@@ -1120,10 +1137,10 @@ inline VstIntPtr VSTCALLBACK hostCallback(AEffect* effect, VstInt32 opcode,
     const auto& name = plugptr->description();
     const auto& pluginIdString = name.data();
     const auto& filepath = plugptr->filePath();
-    (void)filepath;
 
     if (opcode < 0) {
-        TRACE("plugin sent some invalid (negative) value %d\n", opcode);
+        TRACE("plugin: %s sent some invalid (negative) value %d\n", filepath.c_str(),
+            opcode);
         return 0;
     }
 

@@ -123,7 +123,9 @@ static LPASIODRVSTRUCT newDrvStruct(
     return lpdrv;
 }
 
-static void deleteDrvStruct(LPASIODRVSTRUCT lpdrv) {
+static void __stdcall deleteDrvStruct(
+    LPASIODRVSTRUCT lpdrv) { // I changed this to __stdcall to avoid debug crash. Should
+                             // all these functions be __stdcall?
     IASIO* iasio;
 
     if (lpdrv != 0) {
